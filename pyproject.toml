@@ -1,0 +1,13 @@
+[project]
+name = "deck-sempai"
+version = "0.1.0"
+description = "Assistant to the regional flashcard deck manager"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "dacite>=1.9.2",
+    "platformdirs>=4.9.4",
+    "requests>=2.33.1",
+    "rich>=14.3.3",
+    "typer>=0.24.1",
+]

@@ -1,7 +1,7 @@
 import re
 
 from interfaces.AnkiConnect import AnkiConnect, AnkiConnectError
-from Deck import Deck, Note, Card
+from Deck import Deck, Field, Note
 from importers.Importer import Importer, ImporterError
 
 
@@ -9,27 +9,6 @@ class AnkiImporter(Importer):
     def __init__(self, ac: AnkiConnect):
         self.name = "anki"
         self.ac = ac
-
-
-    @staticmethod
-    def _anki_to_text(field) -> str:
-        field = re.sub(r'<br>', '', field)
-        field = re.sub(r'\[sound:[^\]]+\]', '', field)
-        return field
-
-
-    @staticmethod
-    def _anki_to_sound(field) -> str:
-        match = re.search(r'\[sound:([^\]]+)\]', field)
-        return match.group(1) if match else ""
-    
-
-    @staticmethod
-    def _anki_to_card(field) -> Card:
-        text = AnkiImporter._anki_to_text(field)
-        sound = AnkiImporter._anki_to_sound(field)
-        return Card(text, sound)
-
 
     # import anki DECK_NAME
     def import_deck(self, *args) -> Deck:
@@ -47,10 +26,10 @@ class AnkiImporter(Importer):
         
         for note_info in notes_info:
             id = note_info['noteId']
-            front = self._anki_to_card(note_info['fields']['Front']['value'])
-            back = self._anki_to_card(note_info['fields']['Back']['value'])
+            front = note_info['fields']['Front']['value']
+            back = note_info['fields']['Back']['value']
             model = note_info['modelName']
             tags = note_info['tags']
-            deck.notes.append(Note(id, front, back, model, tags))
+            deck.notes.append(Note(id, Field(front), Field(back), model, tags))
 
         return deck

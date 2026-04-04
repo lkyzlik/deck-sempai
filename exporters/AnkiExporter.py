@@ -1,5 +1,5 @@
 
-from Deck import Deck, Note, Card
+from Deck import Deck, Note
 from Logger import Logger
 from exporters.Exporter import Exporter, ExporterError
 from interfaces.AnkiConnect import AnkiConnect, AnkiConnectError
@@ -12,17 +12,13 @@ class AnkiExporter(Exporter):
         self.logger = Logger()
 
 
-    def _card_to_anki(self, card: Card) -> str:
-        return card.text + (f'<br><br>[sound:{card.sound}]' if card.sound else "")
-
-
     def _add_note_to_anki(self, note: Note, deck_name: str) -> dict:
         return {
             "deckName": deck_name,
             "modelName": note.model,
             "fields": {
-                "Front": self._card_to_anki(note.front),
-                "Back": self._card_to_anki(note.back),
+                "Front": str(note.front),
+                "Back": str(note.back),
             },
             "tags": note.tags,
         }
@@ -32,8 +28,8 @@ class AnkiExporter(Exporter):
         return {
             "id": note.id,
             "fields": {
-                "Front": self._card_to_anki(note.front),
-                "Back": self._card_to_anki(note.back),
+                "Front": str(note.front),
+                "Back": str(note.back),
             },
             "tags": note.tags,
         }
@@ -52,4 +48,4 @@ class AnkiExporter(Exporter):
                 else:
                     self.ac.add_note(self._add_note_to_anki(note, deck.name))
             except AnkiConnectError as e:
-                self.logger.warning(f"Can't add note {note.front.text!r}: {e}")
+                self.logger.warning(f"Can't add note {(note.front.get_text_oneline())!r}: {e}")

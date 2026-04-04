@@ -1,4 +1,4 @@
-from Deck import Card, Deck, Model, Note
+from Deck import Deck, Field, Model, Note
 from importers.Importer import Importer, ImporterError
 
 class LineImporter(Importer):
@@ -17,6 +17,6 @@ class LineImporter(Importer):
             raise ImporterError(self, "Missing argument 1: front text")
         
         deck = Deck()
-        deck.notes.append(Note(None, Card(front), Card(back), model, tags))
+        deck.notes.append(Note(None, Field(front), Field(back), model, tags))
 
         return deck

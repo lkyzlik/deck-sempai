@@ -5,7 +5,7 @@ from rich.table import Table
 from rich import box
 from rich.text import Text
 
-from Deck import Deck, Note, Card
+from Deck import Deck, Field
 from exporters.Exporter import Exporter
 
 
@@ -20,9 +20,12 @@ class RichConsoleExporter(Exporter):
         self.console = Console()
 
 
-    def _card_to_rich(self, card: Card):
-        return Text(card.text) + (Text(" [♪]", style=COLOR_SOUND) if card.sound else "")
-
+    def _field_to_rich(self, field: Field):
+        text = Text()
+        text.append(field.get_text_oneline())
+        for sound in field.sounds:
+            text.append(Text(" [♪]", style=COLOR_SOUND))
+        return text
 
     def _deck_to_rich(self, deck: Deck, max_rows: int = None):
         table = Table(
@@ -38,7 +41,7 @@ class RichConsoleExporter(Exporter):
         notes = deck.notes if max_rows is None else deck.notes[:max_rows]
 
         for note in notes:
-            table.add_row(self._card_to_rich(note.front), self._card_to_rich(note.back))
+            table.add_row(self._field_to_rich(note.front), self._field_to_rich(note.back))
 
         return table
 

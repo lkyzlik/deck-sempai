@@ -1,5 +1,6 @@
 from rich.console import Console
 from rich.text import Text
+from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 
 class Logger:
     def __init__(self):
@@ -22,3 +23,12 @@ class Logger:
         text.append("Warning: ", style="bold yellow")
         text.append(message, style="yellow")
         self.console.print(text)
+
+
+    def progress(self) -> Progress:
+        return Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            console=self.console
+        )   

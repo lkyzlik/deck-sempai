@@ -21,6 +21,9 @@ from importers.LineImporter import LineImporter
 
 from interfaces.AnkiConnect import AnkiConnect
 from interfaces.Logger import Logger
+from interfaces.OrdnetScraper import OrdnetScraper
+
+from transformers.AddSoundOrdnet import AddSoundOrdnet
 
 # TODO: load from .toml file
 CONFIG = {
@@ -55,6 +58,9 @@ class App:
         self.importers = {
             "anki": AnkiImporter(ac),
             "line": LineImporter(),
+        }
+        self.transformers = {
+            "add-sound-ordnet": AddSoundOrdnet(OrdnetScraper(self.media_dir), self.logger),
         }
 
         self._load_state()
@@ -91,6 +97,12 @@ class App:
 
     def show_deck(self, deck: Deck):
         self.exporters[self.config["show_exporter"]].export_deck(deck)
+
+
+    def clear_temp_files(self):
+        if self.media_dir.exists():
+            for file in self.media_dir.glob("*"):
+                file.unlink()
         
 
 commands = typer.Typer()
@@ -142,7 +154,7 @@ def import_(importer: str, args: Optional[list[str]] = typer.Argument([])):
     if importer not in app.importers:
         app.logger.error(f"Importer '{importer}' not found. Available importers: {', '.join(app.importers.keys())}")
         return
-    
+
     try:
         imported = app.importers[importer].import_deck(*args)
         app.show_deck(imported)
@@ -170,6 +182,32 @@ def show():
     except (ImporterError, ExporterError) as e:
         app.logger.error(str(e))
         return
+
+
+@commands.command()
+def transform(transformer: str, args: Optional[list[str]] = typer.Argument([])):
+    """
+    transform TRANSFORMER [ARGS...]
+
+    Transform the current deck using the specified TRANSFORMER. Additional arguments can be passed to the transformer.
+    """
+    if transformer not in app.transformers:
+        app.logger.error(f"Transformer '{transformer}' not found. Available transformers: {', '.join(app.transformers.keys())}")
+        return
+
+    try:
+        deck = app.load_deck()
+        app.transformers[transformer].transform_deck(deck, *args)
+        app.show_deck(deck)
+        response = input("Transform preview. Do you want to save this? (y/n)\n")
+        if response.lower() == "y":
+            app.save_deck(deck)
+
+    except (ImporterError, ExporterError) as e:
+        app.logger.error(str(e))
+        return
+
+    app.clear_temp_files()
 
 
 if __name__ == "__main__":

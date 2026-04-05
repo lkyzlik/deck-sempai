@@ -51,6 +51,9 @@ class Note:
     model: Model = Model.BASIC_REVERSED
     tags: list[str] = field(default_factory=list)
 
+    def get_field(self, side: str) -> Field:
+        return self.front if side == "front" else self.back
+
     # == operator to compare notes (ignoring model and tags)
     def __eq__(self, other):
         if not isinstance(other, Note):

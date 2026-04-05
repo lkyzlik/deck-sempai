@@ -1,15 +1,15 @@
 
 from Deck import Deck, Note
-from Logger import Logger
+from interfaces.Logger import Logger
 from exporters.Exporter import Exporter, ExporterError
 from interfaces.AnkiConnect import AnkiConnect, AnkiConnectError
 
 
 class AnkiExporter(Exporter):
-    def __init__(self, ac: AnkiConnect):
+    def __init__(self, ac: AnkiConnect, logger: Logger):
         self.name = "anki"
         self.ac = ac
-        self.logger = Logger()
+        self.logger = logger
 
 
     def _add_note_to_anki(self, note: Note, deck_name: str) -> dict:

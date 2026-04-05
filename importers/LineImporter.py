@@ -14,7 +14,7 @@ class LineImporter(Importer):
         tags = args[3].split(",") if 3 < len(args) else []
 
         if not front:
-            raise ImporterError(self, "Missing argument 1: front text")
+            raise ImporterError(self, "Missing argument 1: FRONT")
         
         deck = Deck()
         deck.notes.append(Note(None, Field(front), Field(back), model, tags))

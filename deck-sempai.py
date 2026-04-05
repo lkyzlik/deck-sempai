@@ -5,21 +5,22 @@ from dataclasses import dataclass, asdict
 from dacite import from_dict
 from platformdirs import user_data_dir
 from pathlib import Path
+from rich.console import Console
 from rich.text import Text
 from typing import Optional
 
 from Deck import Deck
-from Logger import Logger
 
 from exporters.Exporter import Exporter, ExporterError
 from exporters.AnkiExporter import AnkiExporter
 from exporters.RichConsoleExporter import RichConsoleExporter
 
-from interfaces.AnkiConnect import AnkiConnect
-
 from importers.Importer import Importer, ImporterError
 from importers.AnkiImporter import AnkiImporter
 from importers.LineImporter import LineImporter
+
+from interfaces.AnkiConnect import AnkiConnect
+from interfaces.Logger import Logger
 
 # TODO: load from .toml file
 CONFIG = {
@@ -38,45 +39,56 @@ class App:
     def __init__(self):
         self.config = CONFIG
         self.state = AppState()
-        self.data_file = Path(user_data_dir("deck-sempai")) / "state.json"
+
+        data_dir = Path(user_data_dir("deck-sempai"))
+        self.state_file = data_dir / "state.json"
+        self.media_dir = data_dir / "media"
+
+        # Interfaces
         self.logger = Logger()
+        ac = AnkiConnect()
 
         self.exporters = {
-            "anki": AnkiExporter(AnkiConnect()),
-            "rich": RichConsoleExporter(),
+            "anki": AnkiExporter(ac, self.logger, self.media_dir),
+            "rich": RichConsoleExporter(Console()),
         }
         self.importers = {
-            "anki": AnkiImporter(AnkiConnect()),
+            "anki": AnkiImporter(ac),
             "line": LineImporter(),
         }
 
         self._load_state()
 
+
     def _load_state(self) -> None:
-        if not self.data_file.exists():
+        if not self.state_file.exists():
             self.state = AppState()
             return
     
-        with open(self.data_file, "r") as f:
+        with open(self.state_file, "r") as f:
             data = json.load(f)
             self.state = from_dict(AppState, data)
 
 
     def _save_state(self) -> None:
-        self.data_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.data_file, "w") as f:
+        self.state_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.state_file, "w") as f:
             json.dump(asdict(self.state), f, indent=4)
+
 
     def set_deck(self, deck_name: str) -> None:
         self.state.current_deck = deck_name
         self._save_state()
 
+
     def load_deck(self):
         return self.importers[self.config["load_importer"]].import_deck(self.state.current_deck)
-    
+
+
     def save_deck(self, deck: Deck):
         self.exporters[self.config["save_exporter"]].export_deck(deck)
-    
+
+
     def show_deck(self, deck: Deck):
         self.exporters[self.config["show_exporter"]].export_deck(deck)
         

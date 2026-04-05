@@ -1,6 +1,5 @@
 from rich.console import Console
 from rich.text import Text
-from typing import Any
 
 class Logger:
     def __init__(self):

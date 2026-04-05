@@ -15,9 +15,9 @@ COLOR_SOUND = "#8b0000"
 
 
 class RichConsoleExporter(Exporter):
-    def __init__(self):
+    def __init__(self, console: Console):
         self.name = "rich"
-        self.console = Console()
+        self.console = console
 
 
     def _field_to_rich(self, field: Field):

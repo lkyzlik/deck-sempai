@@ -9,7 +9,7 @@ class AnkiConnect:
         self.port = port
 
     
-    def _invoke(self, action, **params):
+    def _invoke(self, action, **params) -> dict:
         try:
             response = requests.post(f'http://{self.host}:{self.port}', json={
                 "action": action,
@@ -24,31 +24,31 @@ class AnkiConnect:
         return result["result"]
     
 
-    def version(self):
+    def version(self) -> int:
         return self._invoke("version")
     
 
-    def deck_names(self):
+    def deck_names(self) -> list[str]:
         return self._invoke("deckNames")
 
 
-    def find_notes(self, query):
+    def find_notes(self, query: str) -> list[int]:
         return self._invoke("findNotes", query=query)
     
 
-    def notes_info(self, note_ids):
+    def notes_info(self, note_ids: list[int]) -> list[dict]:
         return self._invoke("notesInfo", notes=note_ids)
     
 
-    def add_note(self, note):
+    def add_note(self, note: dict) -> int:
         return self._invoke("addNote", note=note)
     
 
-    def add_notes(self, notes):
+    def add_notes(self, notes: list[dict]) -> list[bool]:
         return self._invoke("addNotes", notes=notes)
     
 
-    def update_note(self, note):
+    def update_note(self, note: dict) -> None:
         return self._invoke("updateNoteFields", note=note)
 
 

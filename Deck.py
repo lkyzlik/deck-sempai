@@ -24,20 +24,23 @@ class Field:
         self.sounds = re.findall(r'\[sound:([^\]]+)\]', text)
         # Remove [sound:...] tags
         self.text = re.sub(r'\[sound:[^\]]+\]', '', text)
-        # Remove trailing newlines
-        self.text = re.sub(r'(?:<br>\s*)+$', '', self.text)
-        # Remove whitespace around
-        self.text = self.text.strip()
+        # Remove leading and trailing whitespace and <br> tags
+        self.text = self._trim(self.text)
+
+    @staticmethod
+    def _trim(text: str) -> str:
+        return re.sub(r'^(?:<br>\s*)+|(?:<br>\s*)+$', '', text).strip()
 
     def get_text_oneline(self) -> str:
-        return re.sub(r'\s+', ' ', self.text).strip()
+        return self._trim(re.sub(r'\s+', ' ', self.text))
 
     def add_sound(self, sound_file: str) -> None:
         self.sounds.append(sound_file)
 
     def __str__(self) -> str:
-        sounds_str = ''.join(f'[sound:{s}] ' for s in self.sounds).strip()
-        return self.FORMAT.replace('[TEXT]', self.text).replace('[SOUNDS]', sounds_str)
+        text = self.FORMAT.replace('[TEXT]', self.text)
+        text = text.replace('[SOUNDS]', ''.join(f'[sound:{s}] ' for s in self.sounds).strip())
+        return self._trim(text)
 
 
 @dataclass

@@ -1,4 +1,7 @@
+import base64
 import requests
+
+from pathlib import Path
 
 class AnkiConnect:
     def __init__(self, host="localhost", port=8765):
@@ -47,7 +50,35 @@ class AnkiConnect:
 
     def update_note(self, note):
         return self._invoke("updateNoteFields", note=note)
-    
+
+
+    def store_media_file(self, filename: str, path: Path) -> None:
+        try:
+            with open(path, "rb") as f:
+                data = base64.b64encode(f.read()).decode("utf-8")
+        except (base64.binascii.Error, UnicodeDecodeError) as e:
+            raise AnkiConnectError(f"Can't encode file {path}: {e}")
+
+        return self._invoke("storeMediaFile", filename=filename, data=data)
+
+
+    def retrieve_media_file(self, filename: str, path: Path) -> None:
+        try:
+            data = self._invoke("retrieveMediaFile", filename=filename)
+            binary_data = base64.b64decode(data)
+        except (base64.binascii.Error, IOError) as e:
+            raise AnkiConnectError(f"Can't decode file {filename!r}: {e}")
+
+        if not path.parent.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(path, "wb") as f:
+            f.write(binary_data)
+
+
+    def delete_media_file(self, filename: str) -> None:
+        return self._invoke("deleteMediaFile", filename=filename)
+
 
 class AnkiConnectError(Exception):
     def __init__(self, message: str):

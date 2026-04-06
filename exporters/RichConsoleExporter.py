@@ -35,13 +35,14 @@ class RichConsoleExporter(Exporter):
             header_style=COLOR_MAIN + " bold",
             row_styles=[COLOR_MAIN, COLOR_MAIN_DIM],
         )
+        table.add_column("#")
         table.add_column("☖ Front")
         table.add_column("☗ Back")
 
         notes = deck.notes if max_rows is None else deck.notes[:max_rows]
 
-        for note in notes:
-            table.add_row(self._field_to_rich(note.front), self._field_to_rich(note.back))
+        for i, note in enumerate(notes, start=1):
+            table.add_row(str(i), self._field_to_rich(note.front), self._field_to_rich(note.back))
 
         return table
 

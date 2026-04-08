@@ -12,7 +12,7 @@ from transformers.Transformer import Transformer, TransformerError
 from rich.progress import Progress, track
 
 
-class AddSoundOrdnet(Transformer):
+class AddSoundOrdnetTransformer(Transformer):
     def __init__(self, scraper: OrdnetScraper, logger: Logger):
         self.name = "add-sound-ordnet"
         self.scraper = scraper

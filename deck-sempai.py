@@ -25,7 +25,7 @@ from interfaces.Logger import Logger
 from interfaces.OrdnetScraper import OrdnetScraper
 
 from transformers.Transformer import Transformer
-from transformers.AddSoundOrdnet import AddSoundOrdnet
+from transformers.AddSoundOrdnetTransformer import AddSoundOrdnetTransformer
 
 # TODO: load from .toml file
 CONFIG = {
@@ -62,7 +62,7 @@ class App:
             "line": LineImporter(),
         }
         self.transformers : dict[str, Transformer] = {
-            "add-sound-ordnet": AddSoundOrdnet(OrdnetScraper(self.media_dir), self.logger),
+            "add-sound-ordnet": AddSoundOrdnetTransformer(OrdnetScraper(self.media_dir), self.logger),
         }
 
         self._load_state()

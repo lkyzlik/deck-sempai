@@ -1,13 +1,20 @@
 from abc import ABC, abstractmethod
 
 from Deck import Deck
+from Results import DeckOpResult
 
 
 class Exporter(ABC):
     name: str
 
     @abstractmethod
-    def export_deck(self, deck: Deck, *args) -> None:
+    def export_deck(self, deck: Deck, *args) -> DeckOpResult:
+        pass
+
+
+class ResultsExporter(Exporter):
+    @abstractmethod
+    def export_deck_with_results(self, deck: Deck, result: DeckOpResult, *args) -> DeckOpResult:
         pass
 
 

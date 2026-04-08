@@ -10,6 +10,7 @@ from rich.text import Text
 from typing import Optional
 
 from Deck import Deck
+from Results import DeckOpResult
 
 from exporters.Exporter import Exporter, ExporterError
 from exporters.AnkiExporter import AnkiExporter
@@ -23,6 +24,7 @@ from interfaces.AnkiConnect import AnkiConnect
 from interfaces.Logger import Logger
 from interfaces.OrdnetScraper import OrdnetScraper
 
+from transformers.Transformer import Transformer
 from transformers.AddSoundOrdnet import AddSoundOrdnet
 
 # TODO: load from .toml file
@@ -51,15 +53,15 @@ class App:
         self.logger = Logger()
         ac = AnkiConnect()
 
-        self.exporters = {
+        self.exporters : dict[str, Exporter | ShowExporter] = {
             "anki": AnkiExporter(ac, self.logger, self.media_dir),
             "rich": RichConsoleExporter(Console()),
         }
-        self.importers = {
+        self.importers : dict[str, Importer] = {
             "anki": AnkiImporter(ac),
             "line": LineImporter(),
         }
-        self.transformers = {
+        self.transformers : dict[str, Transformer] = {
             "add-sound-ordnet": AddSoundOrdnet(OrdnetScraper(self.media_dir), self.logger),
         }
 
@@ -95,8 +97,18 @@ class App:
         self.exporters[self.config["save_exporter"]].export_deck(deck)
 
 
-    def show_deck(self, deck: Deck):
-        self.exporters[self.config["show_exporter"]].export_deck(deck)
+    def show_deck(self, deck: Deck, results: DeckOpResult = None):
+        if results:
+            self.exporters[self.config["show_exporter"]].export_deck_with_results(deck, results)
+        else:
+            self.exporters[self.config["show_exporter"]].export_deck(deck)
+
+
+    def preview(self, title: str, deck: Deck, results: DeckOpResult = None) -> bool:
+        self.logger.print(title)
+        self.show_deck(deck, results)
+        response = input("Do you want to continue? (y/n)\n")
+        return response.lower() == "y"
 
 
     def clear_temp_files(self):
@@ -137,7 +149,8 @@ def export(exporter: str, args: Optional[list[str]] = typer.Argument([])):
     
     try:
         deck = app.load_deck()
-        app.exporters[exporter].export_deck(deck, *args)
+        results = app.exporters[exporter].export_deck(deck, *args)
+        app.show_deck(deck, results)
     except (ImporterError, ExporterError) as e:
         app.logger.error(str(e))
         return
@@ -157,9 +170,7 @@ def import_(importer: str, args: Optional[list[str]] = typer.Argument([])):
 
     try:
         imported = app.importers[importer].import_deck(*args)
-        app.show_deck(imported)
-        response = input("Import preview. Do you want to import this? (y/n)\n")
-        if response.lower() == "y":
+        if app.preview("Import preview", imported):
             deck = app.load_deck() + imported
             app.save_deck(deck)
 
@@ -197,10 +208,8 @@ def transform(transformer: str, args: Optional[list[str]] = typer.Argument([])):
 
     try:
         deck = app.load_deck()
-        app.transformers[transformer].transform_deck(deck, *args)
-        app.show_deck(deck)
-        response = input("Transform preview. Do you want to save this? (y/n)\n")
-        if response.lower() == "y":
+        results = app.transformers[transformer].transform_deck(deck, *args)
+        if app.preview("Transform preview", deck, results):
             app.save_deck(deck)
 
     except (ImporterError, ExporterError) as e:

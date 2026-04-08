@@ -1,13 +1,14 @@
 from abc import ABC, abstractmethod
 
 from Deck import Deck
+from Results import DeckOpResult
 
 
 class Transformer(ABC):
     name: str
 
     @abstractmethod
-    def transform_deck(self, deck: Deck, *args) -> Deck:
+    def transform_deck(self, deck: Deck, *args) -> DeckOpResult:
         pass
 
 

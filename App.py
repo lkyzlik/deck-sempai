@@ -23,6 +23,7 @@ from interfaces.Logger import Logger
 from interfaces.OrdnetScraper import OrdnetScraper
 
 from transformers.Transformer import Transformer, TransformerError
+from transformers.AddSoundManager import AddSoundManager
 from transformers.AddSoundOrdnetTransformer import AddSoundOrdnetTransformer
 
 
@@ -55,6 +56,9 @@ class App:
         self.transformers : dict[str, Transformer] = {
             "add-sound-ordnet": AddSoundOrdnetTransformer(OrdnetScraper(self.media_dir), self.logger),
         }
+
+        # Add managers (this must be done after all individual transformers are created)
+        self.transformers["add-sound"] = AddSoundManager(self.logger, self.transformers)
 
         self._load_state()
 

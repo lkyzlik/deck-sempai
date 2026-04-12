@@ -23,5 +23,19 @@ class AliasedStrEnum(StrEnum):
     
 
 class Language(AliasedStrEnum):
-    ENGLISH = "English", "en"
     DANISH = "Danish", "da", "dansk"
+    ENGLISH = "English", "en"
+
+
+class Side(AliasedStrEnum):
+    FRONT = "front", "f"
+    BACK = "back", "b"
+
+
+class Model(AliasedStrEnum):
+    BASIC = "Basic", "b"
+    BASIC_REVERSED = "Basic (and reversed card)", "br"
+    BASIC_OPT_REVERSED = "Basic (optional reversed card)", "bor"
+    BASIC_TYPE = "Basic (type in the answer)", "ba"
+    CLOZE = "Cloze", "c"
+    IMAGE = "Image Occlusion", "img"

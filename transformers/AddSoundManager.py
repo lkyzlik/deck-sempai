@@ -1,5 +1,6 @@
 
-from Enums import Language
+from Deck import Deck
+from Enums import Language, Side
 from interfaces.Logger import Logger
 from transformers.Transformer import Transformer, TransformerError, DeckOpResult
 
@@ -25,12 +26,7 @@ class AddSoundManager(Transformer):
         self.logger.warning(f"{self.name!r} transformer: {message}")
 
 
-    def transform_deck(self, deck, side: str, lang: str) -> DeckOpResult:
-        try:
-            lang = Language(lang)
-        except ValueError:
-            raise TransformerError(self, f"Unknown language {lang!r}, supported: {', '.join(self.language_map.keys())}")
-
+    def _transform_deck(self, deck: Deck, side: Side, lang: Language) -> DeckOpResult:
         transformer_names = self.language_map.get(lang)
         if not transformer_names:
             raise TransformerError(self, f"Unsupported language {lang!r}, supported: {', '.join(self.language_map.keys())}")  
@@ -47,3 +43,21 @@ class AddSoundManager(Transformer):
                 self._warning(str(e))
 
         raise TransformerError(self, f"All transformers for language {lang!r} failed")
+
+
+    def transform_deck(self, deck: Deck, side: str = None, lang: str = None) -> DeckOpResult:
+        if not side:
+            raise TransformerError(self, "Missing argument: side")
+        try:
+            side = Side(side)
+        except ValueError:
+            raise TransformerError(self, f"Invalid argument: side={side!r}, supported: {', '.join([s.value for s in Side])}")
+
+        if not lang:
+            raise TransformerError(self, "Missing argument: lang")
+        try:
+            lang = Language(lang)
+        except ValueError:
+            raise TransformerError(self, f"Invalid argument: lang={lang!r}, supported: {', '.join(self.language_map.keys())}")
+
+        return self._transform_deck(deck, side, lang)

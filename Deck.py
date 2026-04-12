@@ -3,14 +3,7 @@ import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-# String enum for model
-class Model(StrEnum):
-    BASIC = "Basic"
-    BASIC_REVERSED = "Basic (and reversed card)"
-    BASIC_OPT_REVERSED = "Basic (optional reversed card)"
-    BASIC_TYPE = "Basic (type in the answer)"
-    CLOZE = "Cloze"
-    IMAGE = "Image Occlusion Enhanced"
+from Enums import Side, Model
 
 
 class Field:
@@ -51,8 +44,8 @@ class Note:
     model: Model = Model.BASIC_REVERSED
     tags: list[str] = field(default_factory=list)
 
-    def get_field(self, side: str) -> Field:
-        return self.front if side == "front" else self.back
+    def get_field(self, side: Side) -> Field:
+        return self.front if side == Side.FRONT else self.back
 
     # == operator to compare notes (ignoring model and tags)
     def __eq__(self, other):

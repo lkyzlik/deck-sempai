@@ -11,10 +11,7 @@ class AnkiImporter(Importer):
         self.ac = ac
 
 
-    def import_deck(self, deck_name: str = None) -> Deck:
-        if not deck_name:
-            raise ImporterError(self, "Missing keyword argument: deck_name")
-
+    def _import_deck(self, deck_name: str) -> Deck:
         deck = Deck(deck_name)
 
         try:
@@ -32,3 +29,10 @@ class AnkiImporter(Importer):
             deck.notes.append(Note(id, Field(front), Field(back), model, tags))
 
         return deck
+
+
+    def import_deck(self, deck_name: str = None) -> Deck:
+        if not deck_name:
+            raise ImporterError(self, "Missing argument: deck_name")
+
+        return self._import_deck(deck_name)

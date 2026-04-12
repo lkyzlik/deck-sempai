@@ -128,7 +128,7 @@ class App:
 
         try:
             deck = self._load_deck()
-            results = self.exporters[exporter].export_deck(deck, kwargs)
+            results = self.exporters[exporter].export_deck(deck, **kwargs)
             self._show_deck(deck, results)
         except (ImporterError, ExporterError) as e:
             self.logger.error(str(e))
@@ -169,7 +169,7 @@ class App:
         try:
             deck = self._load_deck()
             results = self.transformers[transformer].transform_deck(deck, **kwargs)
-            if self._preview("Transform preview", deck, results):
+            if self._preview("Changes preview", deck, results):
                 self._save_deck(deck)
 
         except (ImporterError, ExporterError, TransformerError) as e:

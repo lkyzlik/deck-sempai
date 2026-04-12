@@ -1,15 +1,12 @@
 import re
 import time
 
-from pathlib import Path
-
 from Deck import Deck, Field
+from Enums import Side
 from Results import DeckOpResult, NoteOpResult
 from interfaces.Logger import Logger
 from interfaces.OrdnetScraper import OrdnetScraper, OrdnetScraperError
 from transformers.Transformer import Transformer, TransformerError
-
-from rich.progress import Progress, track
 
 
 class AddSoundOrdnetTransformer(Transformer):
@@ -65,15 +62,10 @@ class AddSoundOrdnetTransformer(Transformer):
         return NoteOpResult(success=True)
 
 
-    def transform_deck(self, deck: Deck, side: str = "back") -> DeckOpResult:
-        print(side)
-
-        if side not in ("front", "back"):
-            raise TransformerError(self, f"Invalid keyword argument: side={side!r}. Must be 'front' or 'back'.")
-
+    def _transform_deck(self, deck: Deck, side: Side) -> DeckOpResult:
         results = []
         with self.logger.progress() as prog:
-            task = prog.add_task(f"Downloading sounds...", total=len(deck.notes))
+            task = prog.add_task(f"Getting sounds...", total=len(deck.notes))
 
             for note in deck.notes:
                 is_last = note == deck.notes[-1]
@@ -82,3 +74,12 @@ class AddSoundOrdnetTransformer(Transformer):
                 prog.update(task, advance=1)
             
         return DeckOpResult(results, op_title="Sound added")
+
+
+    def transform_deck(self, deck: Deck, side: str = Side.BACK) -> DeckOpResult:
+        try:
+            side = Side(side)
+        except ValueError:
+            raise TransformerError(self, f"Invalid argument: side={side!r}, supported: {', '.join([s.value for s in Side])}")
+
+        return self._transform_deck(deck, side)

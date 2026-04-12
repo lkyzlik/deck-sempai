@@ -7,7 +7,7 @@ from rich.text import Text
 
 from Deck import Deck, Field
 from Results import DeckOpResult
-from exporters.Exporter import ResultsExporter
+from exporters.Exporter import ResultsExporter, ExporterError
 
 
 COLOR_MAIN_DIM = "#8d6923"
@@ -29,7 +29,7 @@ class RichConsoleExporter(ResultsExporter):
         return text
 
 
-    def _deck_to_rich(self, deck: Deck, result: DeckOpResult = None, max_rows: int = None):
+    def _export_deck(self, deck: Deck, result: DeckOpResult = None, max_rows: int = None):
         table = Table(
             show_header=True,
             box=box.DOUBLE_EDGE,
@@ -57,14 +57,27 @@ class RichConsoleExporter(ResultsExporter):
                 row.append(Text(status, style="green" if note_result.success else "red"))
             table.add_row(*row)
 
-        return table
+        self.console.print(table)
 
-
-    def export_deck(self, deck: Deck, max_rows: int = None) -> DeckOpResult:
-        self.console.print(self._deck_to_rich(deck, max_rows=max_rows))
         return DeckOpResult.all_ok(len(deck.notes), op_title="Shown")
 
 
-    def export_deck_with_results(self, deck: Deck, results: DeckOpResult, max_rows: int = None) -> DeckOpResult:
-        self.console.print(self._deck_to_rich(deck, results, max_rows))
-        return DeckOpResult.all_ok(len(deck.notes), op_title="Shown")
+    def _parse_max_rows(self, max_rows: str) -> int | None:
+        if max_rows is None:
+            return None
+        try:
+            max_rows = int(max_rows)
+            if max_rows <= 0:
+                raise ValueError()
+            return max_rows
+        except ValueError:
+            raise ExporterError(self, f"Invalid argument: max_rows, must be a positive integer")
+
+
+    def export_deck(self, deck: Deck, max_rows: str = None) -> DeckOpResult:
+        return self._export_deck(deck, max_rows=self._parse_max_rows(max_rows))
+
+
+    def export_deck_with_results(self, deck: Deck, results: DeckOpResult, max_rows: str = None) -> DeckOpResult:
+        return self._export_deck(deck, result=results, max_rows=self._parse_max_rows(max_rows))
+    

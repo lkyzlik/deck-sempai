@@ -83,7 +83,7 @@ class AnkiExporter(Exporter):
         return NoteOpResult(True)
 
 
-    def export_deck(self, deck: Deck, *args) -> DeckOpResult:
+    def export_deck(self, deck: Deck) -> DeckOpResult:
         try:
             existing_note_ids = self.ac.find_notes(f'deck:{deck.name}')
         except AnkiConnectError as e:

@@ -7,7 +7,7 @@ class Importer(ABC):
     name: str
 
     @abstractmethod
-    def import_deck(self, *args) -> Deck:
+    def import_deck(self, **kwargs) -> Deck:
         pass
 
 

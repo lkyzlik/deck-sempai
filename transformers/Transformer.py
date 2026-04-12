@@ -8,7 +8,7 @@ class Transformer(ABC):
     name: str
 
     @abstractmethod
-    def transform_deck(self, deck: Deck, *args) -> DeckOpResult:
+    def transform_deck(self, deck: Deck, **kwargs) -> DeckOpResult:
         pass
 
 

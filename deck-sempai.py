@@ -24,7 +24,7 @@ from interfaces.AnkiConnect import AnkiConnect
 from interfaces.Logger import Logger
 from interfaces.OrdnetScraper import OrdnetScraper
 
-from transformers.Transformer import Transformer
+from transformers.Transformer import Transformer, TransformerError
 from transformers.AddSoundOrdnetTransformer import AddSoundOrdnetTransformer
 
 # TODO: load from .toml file
@@ -115,17 +115,25 @@ class App:
         if self.media_dir.exists():
             for file in self.media_dir.glob("*"):
                 file.unlink()
-        
+
+
+CTX_SETTINGS = {"allow_extra_args": True, "ignore_unknown_options": True}
 
 commands = typer.Typer()
 app = App()
+
+def parse_kwargs(args: list[str]) -> dict:
+    parsed = {}
+    for arg in args:
+        if "=" in arg:
+            key, value = arg.split("=", 1)
+            parsed[key] = value
+    return parsed
 
 
 @commands.command()
 def deck(name: Optional[str] = typer.Argument(None)):
     """
-    deck [NAME]
-
     Set the current deck to work with. If no NAME is provided, shows the current deck.
     """
     if name:
@@ -134,14 +142,13 @@ def deck(name: Optional[str] = typer.Argument(None)):
     text.append("Current deck: ")
     text.append(app.state.current_deck or "(none selected)", style="bold")
     app.logger.print(text)
-    
 
-@commands.command()
-def export(exporter: str, args: Optional[list[str]] = typer.Argument([])):
+
+@commands.command(context_settings=CTX_SETTINGS)
+def export(ctx: typer.Context, exporter: str):
     """
-    export EXPORTER [ARGS...]
-
-    Export the current deck using the specified EXPORTER. Additional arguments can be passed to the exporter.
+    Export the current deck using the specified EXPORTER.
+    Additional keyword arguments can be passed to the exporter.
     """
     if exporter not in app.exporters:
         app.logger.error(f"Exporter '{exporter}' not found. Available exporters: {', '.join(app.exporters.keys())}")
@@ -149,7 +156,7 @@ def export(exporter: str, args: Optional[list[str]] = typer.Argument([])):
     
     try:
         deck = app.load_deck()
-        results = app.exporters[exporter].export_deck(deck, *args)
+        results = app.exporters[exporter].export_deck(deck, **parse_kwargs(ctx.args))
         app.show_deck(deck, results)
     except (ImporterError, ExporterError) as e:
         app.logger.error(str(e))
@@ -157,19 +164,18 @@ def export(exporter: str, args: Optional[list[str]] = typer.Argument([])):
 
 
 # 'import' is a reserved keyword in Python, so we use 'import_' instead
-@commands.command("import") 
-def import_(importer: str, args: Optional[list[str]] = typer.Argument([])):
+@commands.command("import", context_settings=CTX_SETTINGS)
+def import_(ctx: typer.Context, importer: str):
     """
-    import IMPORTER [ARGS...]
-
-    Import a deck using the specified IMPORTER. Additional arguments can be passed to the importer.
+    Import a deck using the specified IMPORTER.
+    Additional keyword arguments can be passed to the importer.
     """
     if importer not in app.importers:
         app.logger.error(f"Importer '{importer}' not found. Available importers: {', '.join(app.importers.keys())}")
         return
 
     try:
-        imported = app.importers[importer].import_deck(*args)
+        imported = app.importers[importer].import_deck(**parse_kwargs(ctx.args))
         if app.preview("Import preview", imported):
             deck = app.load_deck() + imported
             app.save_deck(deck)
@@ -182,8 +188,6 @@ def import_(importer: str, args: Optional[list[str]] = typer.Argument([])):
 @commands.command()
 def show():
     """
-    show
-
     Show the current deck.
     """
     try:
@@ -195,12 +199,11 @@ def show():
         return
 
 
-@commands.command()
-def transform(transformer: str, args: Optional[list[str]] = typer.Argument([])):
+@commands.command(context_settings=CTX_SETTINGS)
+def transform(ctx: typer.Context, transformer: str):
     """
-    transform TRANSFORMER [ARGS...]
-
-    Transform the current deck using the specified TRANSFORMER. Additional arguments can be passed to the transformer.
+    Transform the current deck using the specified TRANSFORMER.
+    Additional keyword arguments can be passed to the transformer.
     """
     if transformer not in app.transformers:
         app.logger.error(f"Transformer '{transformer}' not found. Available transformers: {', '.join(app.transformers.keys())}")
@@ -208,11 +211,11 @@ def transform(transformer: str, args: Optional[list[str]] = typer.Argument([])):
 
     try:
         deck = app.load_deck()
-        results = app.transformers[transformer].transform_deck(deck, *args)
+        results = app.transformers[transformer].transform_deck(deck, **parse_kwargs(ctx.args))
         if app.preview("Transform preview", deck, results):
             app.save_deck(deck)
 
-    except (ImporterError, ExporterError) as e:
+    except (ImporterError, ExporterError, TransformerError) as e:
         app.logger.error(str(e))
         return
 

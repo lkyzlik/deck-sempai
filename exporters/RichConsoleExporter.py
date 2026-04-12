@@ -60,13 +60,11 @@ class RichConsoleExporter(ResultsExporter):
         return table
 
 
-    def export_deck(self, deck: Deck, *args) -> DeckOpResult:
-        max_rows = int(args[0]) if 0 < len(args) else None
+    def export_deck(self, deck: Deck, max_rows: int = None) -> DeckOpResult:
         self.console.print(self._deck_to_rich(deck, max_rows=max_rows))
         return DeckOpResult.all_ok(len(deck.notes), op_title="Shown")
 
 
-    def export_deck_with_results(self, deck: Deck, results: DeckOpResult, *args) -> DeckOpResult:
-        max_rows = int(args[0]) if 0 < len(args) else None
+    def export_deck_with_results(self, deck: Deck, results: DeckOpResult, max_rows: int = None) -> DeckOpResult:
         self.console.print(self._deck_to_rich(deck, results, max_rows))
         return DeckOpResult.all_ok(len(deck.notes), op_title="Shown")

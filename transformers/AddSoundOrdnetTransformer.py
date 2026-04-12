@@ -65,14 +65,11 @@ class AddSoundOrdnetTransformer(Transformer):
         return NoteOpResult(success=True)
 
 
-    # transform add-sound-ordnet [SIDE]
-    def transform_deck(self, deck: Deck, *args) -> DeckOpResult:
-        try:
-            side = args[0] if 0 < len(args) else "back"
-            if side not in ("front", "back"):
-                raise ValueError()
-        except ValueError:
-            raise TransformerError(self, f"Invalid argument 1: SIDE, expected 'front' or 'back'")
+    def transform_deck(self, deck: Deck, side: str = "back") -> DeckOpResult:
+        print(side)
+
+        if side not in ("front", "back"):
+            raise TransformerError(self, f"Invalid keyword argument: side={side!r}. Must be 'front' or 'back'.")
 
         results = []
         with self.logger.progress() as prog:

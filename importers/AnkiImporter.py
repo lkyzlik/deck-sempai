@@ -10,11 +10,10 @@ class AnkiImporter(Importer):
         self.name = "anki"
         self.ac = ac
 
-    # import anki DECK_NAME
-    def import_deck(self, *args) -> Deck:
-        deck_name = args[0] if 0 < len(args) else None
+
+    def import_deck(self, deck_name: str = None) -> Deck:
         if not deck_name:
-            raise ImporterError(self, "Missing argument 1: DECK_NAME")
+            raise ImporterError(self, "Missing keyword argument: deck_name")
 
         deck = Deck(deck_name)
 

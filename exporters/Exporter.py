@@ -8,13 +8,13 @@ class Exporter(ABC):
     name: str
 
     @abstractmethod
-    def export_deck(self, deck: Deck, *args) -> DeckOpResult:
+    def export_deck(self, deck: Deck, **kwargs) -> DeckOpResult:
         pass
 
 
 class ResultsExporter(Exporter):
     @abstractmethod
-    def export_deck_with_results(self, deck: Deck, result: DeckOpResult, *args) -> DeckOpResult:
+    def export_deck_with_results(self, deck: Deck, result: DeckOpResult, **kwargs) -> DeckOpResult:
         pass
 
 

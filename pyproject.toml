@@ -8,8 +8,10 @@ dependencies = [
     "bs4>=0.0.2",
     "dacite>=1.9.2",
     "httpx>=0.28.1",
+    "ollama>=0.6.1",
     "platformdirs>=4.9.4",
     "requests>=2.33.1",
     "rich>=14.3.3",
+    "toml>=0.10.2",
     "typer>=0.24.1",
 ]

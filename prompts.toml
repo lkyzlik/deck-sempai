@@ -1,0 +1,36 @@
+# This file contains prompts for AI transformations
+#
+# Placeholders in {} will be replaced with actual values when the prompt is used.
+# {lang_from} - language of the input field
+# {lang_to}   - language of the output field
+#
+# Use {{ }} to escape curly braces.
+
+translate = "Translate the following text from {lang_from} to {lang_to}. Only return the translated text without any additional formatting or explanation.\n"
+
+[grammar_help]
+default = "You are a helpful assistant for editing words in {lang_from}. If the following text is not in {lang_from}, just return the exact input text without any changes, including parts in curly braces, and ignore rest of the instructions.\n"
+
+[grammar_help.noun_article]
+default = ""
+da = """- If it's not a noun, just return the exact input text without any changes, including parts in curly braces.
+- If it's a noun, add correct indefinite article 'en' or 'et'. Eg. for 'bil' output 'en bil', for 'hus' output 'et hus'. Make sure the article is before the word.
+"""
+
+[grammar_help.noun_plural]
+default = ""
+da = """- If it's not a noun, just return the exact input text without any changes, including parts in curly braces.
+- If it's a noun, add plural suffix in curly braces after the word. Eg. for 'bil' output 'bil {{-er}}', for 'hus' output 'hus {{-er}}'. If the plural is the same as singular, use empty suffix '{{-}}'. Make sure the suffix is after the word.
+"""
+
+[grammar_help.verb_particle]
+default = ""
+da = """- If it's not a verb, just return the exact input text without any changes, including parts in curly braces.
+- If it's a verb, add particle 'at' in front of the word. Eg. for 'køre' output 'at køre', for 'spise' output 'at spise'. Make sure the particle is before the word.
+"""
+
+[grammar_help.verb_tenses]
+default = ""
+da = """- If it's not a verb, just return the exact input text without any changes, including parts in curly braces.
+- If it's a verb, add datid and førnutid in curly braces after the word. Eg. for 'køre' output 'køre {{kørte, har kørt}}', for 'spise' output 'spise {{spiste, har spist}}'.
+"""

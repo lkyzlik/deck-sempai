@@ -25,6 +25,9 @@ from interfaces.OrdnetScraper import OrdnetScraper
 from transformers.Transformer import Transformer, TransformerError
 from transformers.AddSoundManager import AddSoundManager
 from transformers.AddSoundOrdnetTransformer import AddSoundOrdnetTransformer
+from transformers.OllamaTransformer import OllamaTransformer
+from transformers.TranslateOllamaTransformer import TranslateOllamaTransformer
+from transformers.GrammarHelpOllamaTransformer import GrammarHelpOllamaTransformer
 
 
 @dataclass
@@ -55,6 +58,9 @@ class App:
         }
         self.transformers : dict[str, Transformer] = {
             "add-sound-ordnet": AddSoundOrdnetTransformer(OrdnetScraper(self.media_dir), self.logger),
+            "ollama": OllamaTransformer(self.logger, default_model="gemma4"),
+            "translate-ollama": TranslateOllamaTransformer(self.logger),
+            "grammar-help-ollama": GrammarHelpOllamaTransformer(self.logger),
         }
 
         # Add managers (this must be done after all individual transformers are created)

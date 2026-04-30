@@ -1,0 +1,48 @@
+from Deck import Deck
+from Results import DeckOpResult
+from Enums import Language, Side
+from interfaces.Logger import Logger
+from interfaces.PromptLoader import PromptLoader, PromptPlaceholders
+from transformers.OllamaTransformer import OllamaTransformer
+from transformers.Transformer import Transformer, TransformerError
+
+
+class TranslateOllamaTransformer(Transformer): 
+    def __init__(self, logger: Logger):
+        self.name = "translate-ollama"
+        self.ollama = OllamaTransformer(logger, prog_bar_title="Translating...")
+        self.pl = PromptLoader("prompts.toml")
+    
+
+    def _warning(self, message: str):
+        self.logger.warning(f"{self.name!r} transformer: {message}")
+    
+
+    def _transform_deck(self, deck: Deck, side_from: Side, side_to: Side,
+                        lang_from: Language, lang_to: Language, model: str) -> DeckOpResult:
+        placeholders = PromptPlaceholders(lang_from=lang_from, lang_to=lang_to)
+        prompt = self.pl.get_prompt("translate", placeholders)
+        return self.ollama._transform_deck(deck, side_from, side_to, prompt, model)
+
+
+    def transform_deck(self, deck: Deck, side: str = Side.FRONT + "-" + Side.BACK,
+                       lang: str = None, model: str = None) -> DeckOpResult:
+        try:
+            side_from, side_to = side.split("-")
+            side_from = Side(side_from)
+            side_to = Side(side_to)
+        except ValueError:
+            raise TransformerError(self, f"Invalid argument: side, supported format: FROM-TO, where FROM and TO are: {', '.join([s.value for s in Side])}")
+        
+        if not lang:
+            raise TransformerError(self, "Missing argument: lang")
+        try:
+            lang_from, lang_to = lang.split("-")
+            lang_from = Language(lang_from)
+            lang_to = Language(lang_to)
+        except ValueError:
+            raise TransformerError(self, f"Invalid argument: lang, supported format: FROM-TO, where FROM and TO are: {', '.join([l.value for l in Language])}")
+        
+        result = self._transform_deck(deck, side_from, side_to, lang_from, lang_to, model)
+        result.op_title = "Translated (AI)"
+        return result

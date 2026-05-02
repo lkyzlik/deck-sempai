@@ -4,25 +4,24 @@ from dataclasses import dataclass, asdict
 from dacite import from_dict
 from platformdirs import user_data_dir
 from pathlib import Path
-from rich.console import Console
 from rich.text import Text
 
 from Deck import Deck
-from Results import DeckOpResult
+from DeckOperator import DeckOpResult, DeckOpError
 
-from exporters.Exporter import Exporter, ExporterError
+from exporters.Exporter import Exporter
 from exporters.AnkiExporter import AnkiExporter
 from exporters.RichConsoleExporter import RichConsoleExporter
 
-from importers.Importer import Importer, ImporterError
+from importers.Importer import Importer
 from importers.AnkiImporter import AnkiImporter
 from importers.LineImporter import LineImporter
 
 from interfaces.AnkiConnect import AnkiConnect
-from interfaces.Logger import Logger
+from interfaces.RichLogger import RichLogger
 from interfaces.OrdnetScraper import OrdnetScraper
 
-from transformers.Transformer import Transformer, TransformerError
+from transformers.Transformer import Transformer
 from transformers.AddSoundManager import AddSoundManager
 from transformers.AddSoundOrdnetTransformer import AddSoundOrdnetTransformer
 from transformers.OllamaTransformer import OllamaTransformer
@@ -45,25 +44,25 @@ class App:
         self.media_dir = data_dir / "media"
 
         # Interfaces
-        self.logger = Logger()
+        self.logger = RichLogger()
         ac = AnkiConnect()
 
         self.exporters : dict[str, Exporter] = {
-            "anki": AnkiExporter(ac, self.logger, self.media_dir),
-            "rich": RichConsoleExporter(Console()),
+            "anki": AnkiExporter(self.logger, ac, self.media_dir),
+            "rich": RichConsoleExporter(self.logger),
         }
         self.importers : dict[str, Importer] = {
-            "anki": AnkiImporter(ac),
-            "line": LineImporter(),
+            "anki": AnkiImporter(self.logger, ac),
+            "line": LineImporter(self.logger),
         }
         self.transformers : dict[str, Transformer] = {
-            "add-sound-ordnet": AddSoundOrdnetTransformer(OrdnetScraper(self.media_dir), self.logger),
-            "ollama": OllamaTransformer(self.logger, default_model="gemma4"),
+            "add-sound-ordnet": AddSoundOrdnetTransformer(self.logger, OrdnetScraper(self.media_dir)),
+            "ollama": OllamaTransformer(self.logger),
             "translate-ollama": TranslateOllamaTransformer(self.logger),
             "grammar-help-ollama": GrammarHelpOllamaTransformer(self.logger),
         }
 
-        # Add managers (this must be done after all individual transformers are created)
+        # Add managers (this must be done after all individual deck operators are created)
         self.transformers["add-sound"] = AddSoundManager(self.logger, self.transformers)
 
         self._load_state()
@@ -136,7 +135,7 @@ class App:
             deck = self._load_deck()
             results = self.exporters[exporter].export_deck(deck, **kwargs)
             self._show_deck(deck, results)
-        except (ImporterError, ExporterError) as e:
+        except DeckOpError as e:
             self.logger.error(str(e))
             return
 
@@ -152,7 +151,7 @@ class App:
                 deck = self._load_deck() + imported
                 self._save_deck(deck)
 
-        except (ImporterError, ExporterError) as e:
+        except DeckOpError as e:
             self.logger.error(str(e))
             return
 
@@ -162,7 +161,7 @@ class App:
             deck = self._load_deck()
             self._show_deck(deck)
 
-        except (ImporterError, ExporterError) as e:
+        except DeckOpError as e:
             self.logger.error(str(e))
             return
 
@@ -178,7 +177,7 @@ class App:
             if self._preview("Changes preview", deck, results):
                 self._save_deck(deck)
 
-        except (ImporterError, ExporterError, TransformerError) as e:
+        except DeckOpError as e:
             self.logger.error(str(e))
             return
 

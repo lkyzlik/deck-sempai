@@ -3,21 +3,16 @@ import time
 
 from Deck import Deck, Field
 from Enums import Side
-from Results import DeckOpResult, NoteOpResult
+from DeckOperator import NoteOpResult, DeckOpResult, DeckOpError
 from interfaces.Logger import Logger
 from interfaces.OrdnetScraper import OrdnetScraper, OrdnetScraperError
-from transformers.Transformer import Transformer, TransformerError
+from transformers.Transformer import Transformer
 
 
 class AddSoundOrdnetTransformer(Transformer):
-    def __init__(self, scraper: OrdnetScraper, logger: Logger):
-        self.name = "add-sound-ordnet"
+    def __init__(self, logger: Logger, scraper: OrdnetScraper):
+        super().__init__(logger)
         self.scraper = scraper
-        self.logger = logger
-
-
-    def _warning(self, message: str):
-        self.logger.warning(f"{self.name!r} transformer: {message}")
 
 
     def _extract_word(self, text: str) -> str | None:
@@ -80,6 +75,6 @@ class AddSoundOrdnetTransformer(Transformer):
         try:
             side = Side(side)
         except ValueError:
-            raise TransformerError(self, f"Invalid argument: side={side!r}, supported: {', '.join([s.value for s in Side])}")
+            raise DeckOpError(self, "Invalid argument: side, supported: " +  ", ".join([s.value for s in Side]))
 
         return self._transform_deck(deck, side)

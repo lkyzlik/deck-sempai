@@ -1,13 +1,14 @@
-import re
-
 from interfaces.AnkiConnect import AnkiConnect, AnkiConnectError
 from Deck import Deck, Field, Note
-from importers.Importer import Importer, ImporterError
+from DeckOperator import DeckOpError
+from importers.Importer import Importer
+
+from interfaces.Logger import Logger
 
 
 class AnkiImporter(Importer):
-    def __init__(self, ac: AnkiConnect):
-        self.name = "anki"
+    def __init__(self, logger: Logger, ac: AnkiConnect):
+        super().__init__(logger)
         self.ac = ac
 
 
@@ -18,7 +19,7 @@ class AnkiImporter(Importer):
             note_ids = self.ac.find_notes(f'deck:{deck.name}')
             notes_info = self.ac.notes_info(note_ids)
         except AnkiConnectError as e:
-            raise ImporterError(self, str(e))
+            raise DeckOpError(self, str(e))
         
         for note_info in notes_info:
             id = note_info['noteId']
@@ -33,6 +34,6 @@ class AnkiImporter(Importer):
 
     def import_deck(self, deck_name: str = None) -> Deck:
         if not deck_name:
-            raise ImporterError(self, "Missing argument: deck_name")
+            raise DeckOpError(self, "Missing argument: deck_name")
 
         return self._import_deck(deck_name)

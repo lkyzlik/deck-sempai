@@ -1,24 +1,17 @@
-from ollama import chat, ChatResponse, GenerateResponse, ResponseError
+from ollama import chat, ChatResponse, ResponseError
 
 from interfaces.Logger import Logger
-from interfaces.PromptLoader import PromptLoader, PromptPlaceholders
-from transformers.Transformer import Transformer, TransformerError
+from transformers.Transformer import Transformer
 from Enums import Side
 from Deck import Deck, Note
-from Results import DeckOpResult, NoteOpResult
+from DeckOperator import NoteOpResult, DeckOpResult, DeckOpError
 
 
 class OllamaTransformer(Transformer):
-    def __init__(self, logger: Logger, default_model: str = "gemma4", prog_bar_title: str = "Processing..."):
-        self.name = "ollama"
-        self.logger = logger
+    def __init__(self, logger: Logger, default_model: str = "gemma4", prog_title: str = "Processing..."):
+        super().__init__(logger)
         self.default_model = default_model
-        self.prog_bar_title = prog_bar_title
-        self.pl = PromptLoader("prompts.toml")
-
-
-    def _warning(self, message: str):
-        self.logger.warning(f"{self.name!r} transformer: {message}")
+        self.prog_title = prog_title
 
 
     def _transform_note(self, note: Note, side_from: Side, side_to: Side, prompt: str, model: str) -> NoteOpResult:
@@ -43,7 +36,7 @@ class OllamaTransformer(Transformer):
     def _transform_deck(self, deck: Deck, side_from: Side, side_to: Side,
                         prompt: str,  model: str = None) -> DeckOpResult:
         with self.logger.progress() as prog:
-            task = prog.add_task(f"{self.prog_bar_title}", total=len(deck.notes))
+            task = prog.add_task(f"{self.prog_title}", total=len(deck.notes))
 
             results : list[NoteOpResult] = []
             for note in deck.notes:
@@ -56,15 +49,15 @@ class OllamaTransformer(Transformer):
 
     def transform_deck(self, deck, side: str = None, prompt: str = None, model: str = None) -> DeckOpResult:
         if not side:
-            raise TransformerError(self, "Missing argument: side")
+            raise DeckOpError(self, "Missing argument: side")
         try:
             side_from, side_to = side.split("-")
             side_from = Side(side_from)
             side_to = Side(side_to)
         except ValueError:
-            raise TransformerError(self, f"Invalid argument: side, supported: FROM-TO, where FROM and TO are: {', '.join([s.value for s in Side])}")
+            raise DeckOpError(self, f"Invalid argument: side, supported: FROM-TO, where FROM and TO are: {', '.join([s.value for s in Side])}")
 
         if not prompt:
-            raise TransformerError(self, "Missing argument: prompt")
+            raise DeckOpError(self, "Missing argument: prompt")
         
         return self._transform_deck(deck, side_from, side_to, prompt, model)

@@ -1,6 +1,6 @@
 import toml
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from pathlib import Path
 
 from Enums import Language

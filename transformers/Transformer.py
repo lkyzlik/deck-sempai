@@ -1,17 +1,10 @@
 from abc import ABC, abstractmethod
 
 from Deck import Deck
-from Results import DeckOpResult
+from DeckOperator import DeckOperator, DeckOpResult
 
 
-class Transformer(ABC):
-    name: str
-
+class Transformer(DeckOperator, ABC):
     @abstractmethod
     def transform_deck(self, deck: Deck, **kwargs) -> DeckOpResult:
         pass
-
-
-class TransformerError(Exception):
-    def __init__(self, transformer: Transformer, message: str):
-        super().__init__(f'{transformer.name!r} transformer: {message}')

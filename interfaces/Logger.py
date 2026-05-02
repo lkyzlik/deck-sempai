@@ -1,34 +1,32 @@
-from rich.console import Console
-from rich.text import Text
-from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
-
-class Logger:
-    def __init__(self):
-        self.console = Console()
+from typing import Protocol
 
 
-    def print(self, message: str | Text):
-        self.console.print(message)
+class LoggerProgress(Protocol):
+    def __enter__(self) -> 'LoggerProgress':
+        ...
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        ...
+
+    def add_task(self, description: str, total: int) -> int:
+        ...
+
+    def update(self, task_id: int, advance: int = 0, description: str = None):
+        ...
 
 
-    def error(self, message: str | Text):
-        text = Text()
-        text.append("Error: ", style="bold red")
-        text.append(message, style="red")
-        self.console.print(text)
+class Logger(Protocol):
+    def print(self, message: str):
+        ...
 
+    def info(self, message: str):
+        ...
 
-    def warning(self, message: str | Text):
-        text = Text()
-        text.append("Warning: ", style="bold yellow")
-        text.append(message, style="yellow")
-        self.console.print(text)
+    def warning(self, message: str):
+        ...
 
+    def error(self, message: str):
+        ...
 
-    def progress(self) -> Progress:
-        return Progress(
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            MofNCompleteColumn(),
-            console=self.console
-        )   
+    def progress(self) -> LoggerProgress:
+        ...

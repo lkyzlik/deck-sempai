@@ -1,22 +1,18 @@
 from pathlib import Path
 
 from Deck import Deck, Note
-from Results import DeckOpResult, NoteOpResult
+from DeckOperator import DeckOpError, NoteOpResult, DeckOpResult
+
 from interfaces.Logger import Logger
-from exporters.Exporter import Exporter, ExporterError
+from exporters.Exporter import Exporter
 from interfaces.AnkiConnect import AnkiConnect, AnkiConnectError
 
 
 class AnkiExporter(Exporter):
-    def __init__(self, ac: AnkiConnect, logger: Logger, media_dir: Path):
-        self.name = "anki"
+    def __init__(self,  logger: Logger, ac: AnkiConnect, media_dir: Path):
+        super().__init__(logger)
         self.ac = ac
-        self.logger = logger
         self.media_dir = media_dir
-
-
-    def _warning(self, message: str):
-        self.logger.warning(f'{self.name!r} exporter: {message}')
 
 
     def _add_note_to_anki(self, note: Note, deck_name: str) -> dict:
@@ -87,7 +83,7 @@ class AnkiExporter(Exporter):
         try:
             existing_note_ids = self.ac.find_notes(f'deck:{deck.name}')
         except AnkiConnectError as e:
-            raise ExporterError(self, e)
+            raise DeckOpError(self, e)
 
         results = []
         for note in deck.notes:

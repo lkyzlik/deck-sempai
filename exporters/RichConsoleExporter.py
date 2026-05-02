@@ -1,13 +1,14 @@
-import argparse
-
 from rich.console import Console
 from rich.table import Table
 from rich import box
 from rich.text import Text
 
 from Deck import Deck, Field
-from Results import DeckOpResult
-from exporters.Exporter import ResultsExporter, ExporterError
+from DeckOperator import DeckOpError, DeckOpResult
+
+from interfaces.Logger import Logger
+from interfaces.RichLogger import RichLogger
+from exporters.Exporter import ResultsExporter
 
 
 COLOR_MAIN_DIM = "#8d6923"
@@ -16,9 +17,12 @@ COLOR_SOUND = "#8b0000"
 
 
 class RichConsoleExporter(ResultsExporter):
-    def __init__(self, console: Console):
-        self.name = "rich"
-        self.console = console
+    def __init__(self, logger: Logger):
+        super().__init__(logger)
+        if isinstance(logger, RichLogger):
+            self.console = logger.console
+        else:
+            self.console = Console()
 
 
     def _field_to_rich(self, field: Field):
@@ -71,7 +75,7 @@ class RichConsoleExporter(ResultsExporter):
                 raise ValueError()
             return max_rows
         except ValueError:
-            raise ExporterError(self, f"Invalid argument: max_rows, must be a positive integer")
+            raise DeckOpError(self, "Invalid argument: max_rows, must be a positive integer")
 
 
     def export_deck(self, deck: Deck, max_rows: str = None) -> DeckOpResult:

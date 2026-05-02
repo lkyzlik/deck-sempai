@@ -1,8 +1,9 @@
 
 from Deck import Deck
+from DeckOperator import DeckOpError, DeckOpResult
 from Enums import Language, Side
 from interfaces.Logger import Logger
-from transformers.Transformer import Transformer, TransformerError, DeckOpResult
+from transformers.Transformer import Transformer
 
 
 class AddSoundManager(Transformer):
@@ -17,19 +18,14 @@ class AddSoundManager(Transformer):
 
 
     def __init__(self, logger: Logger, transformers: dict[str, Transformer]):
-        self.name = "add-sound"
-        self.logger = logger
+        super().__init__(logger)
         self.transformers = transformers
-
-
-    def _warning(self, message: str):
-        self.logger.warning(f"{self.name!r} transformer: {message}")
 
 
     def _transform_deck(self, deck: Deck, side: Side, lang: Language) -> DeckOpResult:
         transformer_names = self.language_map.get(lang)
         if not transformer_names:
-            raise TransformerError(self, f"Unsupported language {lang!r}, supported: {', '.join(self.language_map.keys())}")  
+            raise DeckOpError(self, f"Unsupported language {lang!r}, supported: {', '.join(self.language_map.keys())}")
 
         for name in transformer_names:
             transformer = self.transformers.get(name)
@@ -39,25 +35,25 @@ class AddSoundManager(Transformer):
 
             try:
                 return transformer.transform_deck(deck, side=side)
-            except TransformerError as e:
+            except DeckOpError as e:
                 self._warning(str(e))
 
-        raise TransformerError(self, f"All transformers for language {lang!r} failed")
+        raise DeckOpError(self, f"All transformers for language {lang!r} failed")
 
 
     def transform_deck(self, deck: Deck, side: str = None, lang: str = None) -> DeckOpResult:
         if not side:
-            raise TransformerError(self, "Missing argument: side")
+            raise DeckOpError(self, "Missing argument: side")
         try:
             side = Side(side)
         except ValueError:
-            raise TransformerError(self, f"Invalid argument: side={side!r}, supported: {', '.join([s.value for s in Side])}")
+            raise DeckOpError(self, f"Invalid argument: side, supported: " +  ", ".join([s.value for s in Side]))
 
         if not lang:
-            raise TransformerError(self, "Missing argument: lang")
+            raise DeckOpError(self, "Missing argument: lang")
         try:
             lang = Language(lang)
         except ValueError:
-            raise TransformerError(self, f"Invalid argument: lang={lang!r}, supported: {', '.join(self.language_map.keys())}")
+            raise DeckOpError(self, "Invalid argument: lang=, supported: " + ", ".join([l.value for l in Language]))
 
         return self._transform_deck(deck, side, lang)

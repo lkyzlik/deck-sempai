@@ -132,9 +132,9 @@ class App:
             return
 
         try:
-            deck = self._load_deck()
-            results = self.exporters[exporter].export_deck(deck, **kwargs)
-            self._show_deck(deck, results)
+            deck: Deck = self._load_deck()
+            result: DeckOpResult = self.exporters[exporter].export_deck(deck, **kwargs)
+            self._show_deck(deck, result)
         except DeckOpError as e:
             self.logger.error(str(e))
             return
@@ -146,9 +146,9 @@ class App:
             return
 
         try:
-            imported = self.importers[importer].import_deck(**kwargs)
+            imported: Deck = self.importers[importer].import_deck(**kwargs)
             if self._preview("Import preview", imported):
-                deck = self._load_deck() + imported
+                deck: Deck = self._load_deck() + imported
                 self._save_deck(deck)
 
         except DeckOpError as e:
@@ -158,7 +158,7 @@ class App:
 
     def show(self):
         try:
-            deck = self._load_deck()
+            deck: Deck = self._load_deck()
             self._show_deck(deck)
 
         except DeckOpError as e:
@@ -172,9 +172,9 @@ class App:
             return
 
         try:
-            deck = self._load_deck()
-            results = self.transformers[transformer].transform_deck(deck, **kwargs)
-            if self._preview("Changes preview", deck, results):
+            deck: Deck = self._load_deck()
+            result: DeckOpResult = self.transformers[transformer].transform_deck(deck, **kwargs)
+            if self._preview("Changes preview", deck, result):
                 self._save_deck(deck)
 
         except DeckOpError as e:

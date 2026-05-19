@@ -1,3 +1,4 @@
+from typing import Self
 from enum import StrEnum
 
 
@@ -10,7 +11,7 @@ class AliasedStrEnum(StrEnum):
         return obj
 
     @classmethod
-    def _missing_(cls, value: object) -> "AliasedStrEnum | None":
+    def _missing_(cls, value: object) -> Self | None:
         if not isinstance(value, str):
             return None
         for member in cls:
@@ -21,8 +22,16 @@ class AliasedStrEnum(StrEnum):
     def short(self) -> str:
         return self._short
     
+    def __str__(self) -> str:
+        return self.value
+
+    @classmethod
+    def from_str(cls, value: str) -> Self:
+        return cls(value)
+
 
 class Language(AliasedStrEnum):
+    NONE = "none", "",
     DANISH = "Danish", "da", "dansk"
     ENGLISH = "English", "en"
 

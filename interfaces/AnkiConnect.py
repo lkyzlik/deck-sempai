@@ -4,6 +4,8 @@ import requests
 from pathlib import Path
 
 class AnkiConnect:
+    METADATA_KEY = "sempai"
+
     def __init__(self, host="localhost", port=8765):
         self.host = host
         self.port = port
@@ -78,6 +80,25 @@ class AnkiConnect:
 
     def delete_media_file(self, filename: str) -> None:
         return self._invoke("deleteMediaFile", filename=filename)
+
+
+    def get_deck_config(self, deck_name: str) -> dict:
+        return self._invoke("getDeckConfig", deck=deck_name)
+ 
+
+    def save_deck_config(self, deck_name: str, config: dict) -> None:
+        return self._invoke("saveDeckConfig", config=config)
+
+
+    def get_deck_meta(self, deck_name: str) -> dict:
+        config = self.get_deck_config(deck_name)
+        return config.get(self.METADATA_KEY, {})
+
+
+    def save_deck_meta(self, deck_name: str, meta: dict) -> None:
+        config = self.get_deck_config(deck_name)
+        config[self.METADATA_KEY] = meta
+        self.save_deck_config(deck_name, config)
 
 
 class AnkiConnectError(Exception):

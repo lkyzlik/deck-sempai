@@ -3,12 +3,12 @@ from rich.table import Table
 from rich import box
 from rich.text import Text
 
-from Deck import Deck, Field
+from Deck import Deck, DeckMeta, Field
 from DeckOperator import DeckOpError, DeckOpResult
 
 from interfaces.Logger import Logger
 from interfaces.RichLogger import RichLogger
-from exporters.Exporter import ResultsExporter
+from exporters.Exporter import ShowExporter
 
 
 COLOR_MAIN_DIM = "#8d6923"
@@ -16,7 +16,7 @@ COLOR_MAIN = "#fae9c8"
 COLOR_SOUND = "#8b0000"
 
 
-class RichConsoleExporter(ResultsExporter):
+class RichConsoleExporter(ShowExporter):
     def __init__(self, logger: Logger):
         super().__init__(logger)
         if isinstance(logger, RichLogger):
@@ -33,7 +33,11 @@ class RichConsoleExporter(ResultsExporter):
         return text
 
 
-    def _export_deck(self, deck: Deck, result: DeckOpResult = None, max_rows: int = None):
+    def _export_deck(self, deck: Deck, include_metadata: bool,
+                     result: DeckOpResult = None, max_rows: int = None) -> DeckOpResult:
+        if include_metadata:
+            self.export_deck_metadata(deck.name, deck.meta)
+
         table = Table(
             show_header=True,
             box=box.DOUBLE_EDGE,
@@ -66,22 +70,45 @@ class RichConsoleExporter(ResultsExporter):
         return DeckOpResult.all_ok(len(deck.notes), op_title="Shown")
 
 
-    def _parse_max_rows(self, max_rows: str) -> int | None:
-        if max_rows is None:
-            return None
-        try:
-            max_rows = int(max_rows)
-            if max_rows <= 0:
-                raise ValueError()
-            return max_rows
-        except ValueError:
-            raise DeckOpError(self, "Invalid argument: max_rows, must be a positive integer")
+    def _parse_kwargs(self, max_rows: str = None, meta: str = None) -> dict:
+        if max_rows:
+            try:
+                max_rows = int(max_rows)
+                if max_rows <= 0:
+                    raise ValueError()
+            except ValueError:
+                raise DeckOpError(self, "Invalid argument: max_rows, must be a positive integer")
+
+        return {"max_rows": max_rows}
 
 
-    def export_deck(self, deck: Deck, max_rows: str = None) -> DeckOpResult:
-        return self._export_deck(deck, max_rows=self._parse_max_rows(max_rows))
+    def export_deck(self, deck: Deck, include_metadata: bool = True, max_rows: str = None) -> DeckOpResult:
+        kwargs = self._parse_kwargs(max_rows)
+        return self._export_deck(deck, include_metadata, **kwargs)
 
 
-    def export_deck_with_results(self, deck: Deck, results: DeckOpResult, max_rows: str = None) -> DeckOpResult:
-        return self._export_deck(deck, result=results, max_rows=self._parse_max_rows(max_rows))
+    def export_deck_with_results(self, deck: Deck, results: DeckOpResult,
+                                 include_metadata: bool = True, max_rows: str = None) -> DeckOpResult:
+        kwargs = self._parse_kwargs(max_rows)
+        return self._export_deck(deck, include_metadata, results, **kwargs)
+
+
+    def export_deck_metadata(self, name: str, meta: DeckMeta):
+        self.export_deck_name(name)
+
+        for key, value in meta.to_dict().items():
+            text = Text()
+            text.append(f"{key}: ", style=COLOR_MAIN_DIM + " bold")
+            text.append(str(value), style=COLOR_MAIN_DIM)
+            self.console.print(text)
+        return True
+
+
+    def export_deck_name(self, name: str) -> bool:
+        text = Text()
+        text.append("Deck: ", style=COLOR_MAIN + " bold")
+        text.append(name, style=COLOR_MAIN)
+        self.console.print(text)
+        return True
+
     

@@ -1,5 +1,5 @@
 from interfaces.AnkiConnect import AnkiConnect, AnkiConnectError
-from Deck import Deck, Field, Note
+from Deck import Deck, DeckMeta, Field, Note
 from DeckOperator import DeckOpError
 from importers.Importer import Importer
 
@@ -16,11 +16,14 @@ class AnkiImporter(Importer):
         deck = Deck(deck_name)
 
         try:
-            note_ids = self.ac.find_notes(f'deck:{deck.name}')
-            notes_info = self.ac.notes_info(note_ids)
+            note_ids: list = self.ac.find_notes(f'deck:{deck.name}')
+            notes_info: list  = self.ac.notes_info(note_ids)
+            metadata: dict = self.ac.get_deck_meta(deck.name)
         except AnkiConnectError as e:
             raise DeckOpError(self, str(e))
-        
+
+        deck.meta = DeckMeta(metadata)
+
         for note_info in notes_info:
             id = note_info['noteId']
             front = note_info['fields']['Front']['value']

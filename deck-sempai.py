@@ -25,6 +25,15 @@ def get_kwargs(ctx: typer.Context) -> dict:
     return parsed
 
 
+@cli.command(context_settings=CTX_SETTINGS)
+def meta(ctx: typer.Context):
+    """
+    Update the current deck's metadata with the provided keyword arguments.
+    If no keyword arguments are provided, show the current metadata.
+    """
+    app.meta(**get_kwargs(ctx))
+
+
 @cli.command()
 def deck(name: Optional[str] = typer.Argument(None)):
     """

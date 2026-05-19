@@ -1,9 +1,37 @@
 import re
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from typing import Protocol, Self
 
-from Enums import Side, Model
+from Enums import Side, Model, Language
+
+
+class DeckMetaAttr(Protocol):
+    def __str__(self) -> str:
+        ...
+
+    @classmethod
+    def from_str(cls, value: str) -> Self:
+        ...
+
+
+class DeckMeta:
+    def __init__(self, data: dict = {}):
+        self.lang_front: Language = Language.NONE
+        self.lang_back: Language = Language.NONE
+        self.update(data)
+
+
+    def update(self, data: dict):
+        for key in data:
+            if hasattr(self, key):
+                value: DeckMetaAttr = getattr(self, key)
+                new_value: DeckMetaAttr = type(value).from_str(data[key])
+                setattr(self, key, new_value)
+
+
+    def to_dict(self) -> dict:
+        return {k: str(v) for k, v in vars(self).items()}
 
 
 class Field:
@@ -12,11 +40,11 @@ class Field:
 
     FORMAT = "[TEXT]<br><br>[SOUNDS]"
 
-    def __init__(self, text: str):
+    def __init__(self, label: str):
         # Store sound file names from [sound:...] tags
-        self.sounds = re.findall(r'\[sound:([^\]]+)\]', text)
+        self.sounds = re.findall(r'\[sound:([^\]]+)\]', label)
         # Remove [sound:...] tags
-        self.text = re.sub(r'\[sound:[^\]]+\]', '', text)
+        self.text = re.sub(r'\[sound:[^\]]+\]', '', label)
         # Remove leading and trailing whitespace and <br> tags
         self.text = self._trim(self.text)
 
@@ -52,12 +80,13 @@ class Note:
         if not isinstance(other, Note):
             return NotImplemented
         return self.id == other.id if self.id and other.id else False
-    
 
-@dataclass
+
 class Deck:
-    name: str = ""
-    notes: list[Note] = field(default_factory=list)
+    def __init__(self, name: str = ""):
+        self.name = name
+        self.meta = DeckMeta()
+        self.notes = []
 
     # + operator to combine decks
     def __add__(self, other):

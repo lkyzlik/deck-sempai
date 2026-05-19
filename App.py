@@ -6,10 +6,10 @@ from platformdirs import user_data_dir
 from pathlib import Path
 from rich.text import Text
 
-from Deck import Deck
+from Deck import Deck, DeckMeta
 from DeckOperator import DeckOpResult, DeckOpError
 
-from exporters.Exporter import Exporter
+from exporters.Exporter import Exporter, ShowExporter
 from exporters.AnkiExporter import AnkiExporter
 from exporters.RichConsoleExporter import RichConsoleExporter
 
@@ -97,11 +97,13 @@ class App:
         self.exporters[self.config["save_exporter"]].export_deck(deck)
 
 
-    def _show_deck(self, deck: Deck, results: DeckOpResult = None):
+    def _show_deck(self, deck: Deck, results: DeckOpResult = None, include_metadata: bool = True):
+        show_exporter: ShowExporter = self.exporters[self.config["show_exporter"]]
+
         if results:
-            self.exporters[self.config["show_exporter"]].export_deck_with_results(deck, results)
+            show_exporter.export_deck_with_results(deck, results, include_metadata)
         else:
-            self.exporters[self.config["show_exporter"]].export_deck(deck)
+            show_exporter.export_deck(deck, include_metadata)
 
 
     def _preview(self, title: str, deck: Deck, results: DeckOpResult = None) -> bool:
@@ -120,10 +122,19 @@ class App:
     def deck(self, name: str = None):
         if name:
             self._set_deck(name)
-        text = Text()
-        text.append("Current deck: ")
-        text.append(self.state.current_deck or "(none selected)", style="bold")
-        self.logger.print(text)
+
+        show_exporter: ShowExporter = self.exporters[self.config["show_exporter"]]
+        show_exporter.export_deck_name(self.state.current_deck)
+
+
+    def meta(self, **kwargs):
+        deck: Deck = self._load_deck()
+        deck.meta.update(kwargs)
+
+        show_exporter: ShowExporter = self.exporters[self.config["show_exporter"]]
+        show_exporter.export_deck_metadata(deck.name, deck.meta)
+
+        self._save_deck(deck)
 
 
     def export(self, exporter: str, **kwargs):

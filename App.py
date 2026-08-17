@@ -23,6 +23,7 @@ from interfaces.OrdnetScraper import OrdnetScraper
 from transformers.Transformer import Transformer
 from transformers.AddSoundManager import AddSoundManager
 from transformers.AddSoundOrdnetTransformer import AddSoundOrdnetTransformer
+from transformers.RemoveSoundTransformer import RemoveSoundTransformer
 from transformers.OllamaTransformer import OllamaTransformer
 from transformers.TranslateOllamaTransformer import TranslateOllamaTransformer
 from transformers.GrammarHelpOllamaTransformer import GrammarHelpOllamaTransformer
@@ -55,6 +56,7 @@ class App:
         }
         self.transformers : dict[str, Transformer] = {
             "add-sound-ordnet": AddSoundOrdnetTransformer(self.frontend, OrdnetScraper(self.media_dir)),
+            "remove-sound": RemoveSoundTransformer(self.frontend),
             "ollama": OllamaTransformer(self.frontend),
             "translate-ollama": TranslateOllamaTransformer(self.frontend),
             "grammar-help-ollama": GrammarHelpOllamaTransformer(self.frontend),

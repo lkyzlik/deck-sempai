@@ -50,10 +50,13 @@ class AddSoundManager(Transformer):
             raise DeckOpError(self, f"Invalid argument: side, supported: " +  ", ".join([s.value for s in Side]))
 
         if not lang:
-            raise DeckOpError(self, "Missing argument: lang")
+            lang = deck.meta.lang_front if side == Side.FRONT else deck.meta.lang_back
         try:
             lang = Language(lang)
         except ValueError:
             raise DeckOpError(self, "Invalid argument: lang=, supported: " + ", ".join([l.value for l in Language]))
+
+        if lang == Language.NONE:
+            raise DeckOpError(self, "Missing argument: lang, and no language found in deck metadata")
 
         return self._transform_deck(deck, side, lang)

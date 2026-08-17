@@ -14,6 +14,10 @@ CTX_SETTINGS = {"allow_extra_args": True, "ignore_unknown_options": True}
 
 app = App(CONFIG)
 cli = typer.Typer()
+add_cli = typer.Typer()
+rm_cli = typer.Typer()
+cli.add_typer(add_cli, name="add")
+cli.add_typer(rm_cli, name="rm")
 
 
 def get_kwargs(ctx: typer.Context) -> dict:
@@ -67,6 +71,22 @@ def show():
     Show the current deck.
     """
     app.show()
+
+
+@add_cli.command("sound")
+def add_sound(side: str = typer.Argument()):
+    """
+    Add sounds to the specified SIDE of the current deck using the sound manager.
+    """
+    app.transform("add-sound", side=side)
+
+
+@rm_cli.command("sound")
+def rm_sound(side: str = typer.Argument()):
+    """
+    Remove sounds from the specified SIDE of the current deck.
+    """
+    app.transform("remove-sound", side=side)
 
 
 @cli.command(context_settings=CTX_SETTINGS)

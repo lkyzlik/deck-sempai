@@ -26,7 +26,7 @@ from transformers.AddSoundOrdnetTransformer import AddSoundOrdnetTransformer
 from transformers.RemoveSoundTransformer import RemoveSoundTransformer
 from transformers.OllamaTransformer import OllamaTransformer
 from transformers.TranslateOllamaTransformer import TranslateOllamaTransformer
-from transformers.GrammarHelpOllamaTransformer import GrammarHelpOllamaTransformer
+from transformers.AddGrammarOllamaTransformer import AddGrammarOllamaTransformer
 
 
 @dataclass
@@ -59,7 +59,7 @@ class App:
             "remove-sound": RemoveSoundTransformer(self.frontend),
             "ollama": OllamaTransformer(self.frontend),
             "translate-ollama": TranslateOllamaTransformer(self.frontend),
-            "grammar-help-ollama": GrammarHelpOllamaTransformer(self.frontend),
+            "add-grammar-ollama": AddGrammarOllamaTransformer(self.frontend),
         }
 
         # Add managers (this must be done after all individual deck operators are created)

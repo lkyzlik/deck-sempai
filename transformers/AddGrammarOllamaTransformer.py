@@ -10,7 +10,7 @@ from transformers.OllamaTransformer import OllamaTransformer
 from transformers.Transformer import Transformer
 
 
-class GrammarHelpOllamaTransformer(Transformer):
+class AddGrammarOllamaTransformer(Transformer):
     def __init__(self, logger: Logger,  default_model: str = "gemma4", prompts_path: Path = "prompts.toml"):
         super().__init__(logger)
         self.ollama = OllamaTransformer(logger, default_model, prog_title="Adding grammar help...")
@@ -20,7 +20,7 @@ class GrammarHelpOllamaTransformer(Transformer):
     def _transform_deck(self, deck: Deck, side: Side, lang: Language,
                         help_type: str, model: str) -> DeckOpResult:
         placeholders = PromptPlaceholders(lang_from=lang)
-        prompt = self.pl.get_prompt(f"grammar_help.{help_type}.{lang.short()}", placeholders)
+        prompt = self.pl.get_prompt(f"grammar.{help_type}.{lang.short()}", placeholders)
         return self.ollama._transform_deck(deck, side, side, prompt, model)
     
 
@@ -42,7 +42,7 @@ class GrammarHelpOllamaTransformer(Transformer):
         
         if not help_type:
             raise DeckOpError(self, "Missing argument: help_type, supported: " +
-                                    ', '.join(self.pl.get_subkeys('grammar_help', include_leafs=False)))
+                                    ', '.join(self.pl.get_subkeys('grammar', include_leafs=False)))
         
 
         result = self._transform_deck(deck, side, lang, help_type, model)

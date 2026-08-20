@@ -81,6 +81,14 @@ def add_sound(side: str = typer.Argument()):
     app.transform("add-sound", side=side)
 
 
+@add_cli.command("grammar")
+def add_grammar(grammar_type: str = typer.Argument(), side: str = typer.Argument()):
+    """
+    Add grammar help of the specified TYPE to the specified SIDE of the current deck.
+    """
+    app.transform("add-grammar", grammar_type=grammar_type, side=side)
+
+
 @rm_cli.command("sound")
 def rm_sound(side: str = typer.Argument()):
     """

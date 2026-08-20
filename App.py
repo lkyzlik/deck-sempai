@@ -27,6 +27,7 @@ from transformers.RemoveSoundTransformer import RemoveSoundTransformer
 from transformers.OllamaTransformer import OllamaTransformer
 from transformers.TranslateOllamaTransformer import TranslateOllamaTransformer
 from transformers.AddGrammarOllamaTransformer import AddGrammarOllamaTransformer
+from transformers.AddGrammarManager import AddGrammarManager
 
 
 @dataclass
@@ -64,6 +65,7 @@ class App:
 
         # Add managers (this must be done after all individual deck operators are created)
         self.transformers["add-sound"] = AddSoundManager(self.frontend, self.transformers)
+        self.transformers["add-grammar"] = AddGrammarManager(self.frontend, self.transformers)
 
         self._load_state()
 

@@ -3,6 +3,7 @@ from typing import Optional
 
 from App import App
 from Deck import Side
+from Enums import GrammarType
 
 # TODO: load from .toml file
 CONFIG = {
@@ -84,10 +85,10 @@ def sound(side: str = typer.Argument(help=f"Side of the card: {', '.join([s.valu
 
 
 @cli.command()
-def grammar(grammar_type: str = typer.Argument(help="Type of grammar help."),
+def grammar(grammar_type: str = typer.Argument(help=f"Type of grammar help: {', '.join([g.value for g in GrammarType])}"),
             side: str = typer.Argument(help=f"Side of the card: {', '.join([s.value for s in Side])}")):
     """
-    Add grammar help of the specified TYPE to the specified SIDE of the current deck.
+    Add grammar help of the specified GRAMMAR_TYPE to the specified SIDE of the current deck.
     """
     app.transform("add-grammar", grammar_type=grammar_type, side=side)
 

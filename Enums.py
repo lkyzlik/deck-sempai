@@ -48,3 +48,10 @@ class Model(AliasedStrEnum):
     BASIC_TYPE = "Basic (type in the answer)", "ba"
     CLOZE = "Cloze", "c"
     IMAGE = "Image Occlusion", "img"
+
+
+class GrammarType(AliasedStrEnum):
+    NOUN_ARTICLE = "noun_article", "na"
+    NOUN_PLURAL = "noun_plural", "np"
+    VERB_PARTICLE = "verb_particle", "vp"
+    VERB_TENSES = "verb_tenses", "vt"

@@ -2,7 +2,7 @@ from pathlib import Path
 
 from Deck import Deck
 from DeckOperator import DeckOpResult, DeckOpError
-from Enums import Language, Side
+from Enums import Language, Side, GrammarType
 
 from interfaces.Logger import Logger
 from interfaces.PromptLoader import PromptLoader, PromptPlaceholders
@@ -16,11 +16,14 @@ class AddGrammarOllamaTransformer(Transformer):
         self.ollama = OllamaTransformer(logger, default_model, prog_title="Adding grammar help...")
         self.pl = PromptLoader(prompts_path)
 
-    
+
     def _transform_deck(self, deck: Deck, side: Side, lang: Language,
-                        grammar_type: str, model: str) -> DeckOpResult:
+                        grammar_type: GrammarType, model: str) -> DeckOpResult:
         placeholders = PromptPlaceholders(lang_from=lang)
-        prompt = self.pl.get_prompt(f"grammar.{grammar_type}.{lang.short()}", placeholders)
+        try:
+            prompt = self.pl.get_prompt(f"grammar.{grammar_type}.{lang.short()}", placeholders)
+        except ValueError:
+            raise DeckOpError(self, f"Unsupported grammar type: {grammar_type!s}")
         return self.ollama._transform_deck(deck, side, side, prompt, model)
 
 
@@ -42,8 +45,12 @@ class AddGrammarOllamaTransformer(Transformer):
 
         if not grammar_type:
             raise DeckOpError(self, "Missing argument: grammar_type, supported: " +
-                                    ', '.join(self.pl.get_subkeys('grammar', include_leafs=False)))
-
+                                    ', '.join([g.value for g in GrammarType]))
+        try:
+            grammar_type = GrammarType(grammar_type)
+        except ValueError:
+            raise DeckOpError(self, "Invalid argument: grammar_type, supported: " +
+                                    ', '.join([g.value for g in GrammarType]))
 
         result = self._transform_deck(deck, side, lang, grammar_type, model)
         result.op_title = "Added grammar help (AI)"

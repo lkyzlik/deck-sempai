@@ -25,7 +25,7 @@ class AddSoundManager(Transformer):
     def _transform_deck(self, deck: Deck, side: Side, lang: Language) -> DeckOpResult:
         transformer_names = self.language_map.get(lang)
         if not transformer_names:
-            raise DeckOpError(self, f"Unsupported language {lang!r}, supported: {', '.join(self.language_map.keys())}")
+            raise DeckOpError(self, f"{lang!s} language not supported, supported: {', '.join([str(l) for l in self.language_map.keys()])}")
 
         for name in transformer_names:
             transformer = self.transformers.get(name)
@@ -38,7 +38,7 @@ class AddSoundManager(Transformer):
             except DeckOpError as e:
                 self._warning(str(e))
 
-        raise DeckOpError(self, f"All transformers for language {lang!r} failed")
+        raise DeckOpError(self, f"All transformers for {lang!s} language failed")
 
 
     def transform_deck(self, deck: Deck, side: str = None, lang: str = None) -> DeckOpResult:
@@ -54,7 +54,7 @@ class AddSoundManager(Transformer):
         try:
             lang = Language(lang)
         except ValueError:
-            raise DeckOpError(self, "Invalid argument: lang=, supported: " + ", ".join([l.value for l in Language]))
+            raise DeckOpError(self, "Invalid argument: lang, supported: " + ", ".join([l.value for l in Language]))
 
         if lang == Language.NONE:
             raise DeckOpError(self, "Missing argument: lang, and no language found in deck metadata")

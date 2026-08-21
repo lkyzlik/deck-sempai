@@ -2,6 +2,7 @@ import typer
 from typing import Optional
 
 from App import App
+from Deck import Side
 
 # TODO: load from .toml file
 CONFIG = {
@@ -35,7 +36,7 @@ def meta(ctx: typer.Context):
 
 
 @cli.command()
-def deck(name: Optional[str] = typer.Argument(None)):
+def deck(name: Optional[str] = typer.Argument(None, help="Name of the deck to switch to. If omitted, shows the current deck.")):
     """
     Set the current deck to work with. If no NAME is provided, shows the current deck.
     """
@@ -43,7 +44,7 @@ def deck(name: Optional[str] = typer.Argument(None)):
 
 
 @cli.command(context_settings=CTX_SETTINGS)
-def export(ctx: typer.Context, exporter: str):
+def export(ctx: typer.Context, exporter: str = typer.Argument(help="Name of the exporter to use.")):
     """
     Export the current deck using the specified EXPORTER.
     Additional keyword arguments can be passed to the exporter.
@@ -53,7 +54,7 @@ def export(ctx: typer.Context, exporter: str):
 
 # 'import' is a reserved keyword in Python, so we use 'import_' instead
 @cli.command("import", context_settings=CTX_SETTINGS)
-def import_(ctx: typer.Context, importer: str):
+def import_(ctx: typer.Context, importer: str = typer.Argument(help="Name of the importer to use.")):
     """
     Import a deck using the specified IMPORTER.
     Additional keyword arguments can be passed to the importer.
@@ -70,8 +71,8 @@ def show():
 
 
 @cli.command()
-def sound(side: str = typer.Argument(),
-          delete: bool = typer.Option(False, "--delete", "-d")):
+def sound(side: str = typer.Argument(help=f"Side of the card: {', '.join([s.value for s in Side])}"),
+          delete: bool = typer.Option(False, "--delete", "-d", help="Remove sound instead of adding it.")):
     """
     Add sound to the specified SIDE of the current deck.
     Use --delete/-d to remove sounds instead.
@@ -83,7 +84,8 @@ def sound(side: str = typer.Argument(),
 
 
 @cli.command()
-def grammar(grammar_type: str = typer.Argument(), side: str = typer.Argument()):
+def grammar(grammar_type: str = typer.Argument(help="Type of grammar help."),
+            side: str = typer.Argument(help=f"Side of the card: {', '.join([s.value for s in Side])}")):
     """
     Add grammar help of the specified TYPE to the specified SIDE of the current deck.
     """
@@ -91,7 +93,7 @@ def grammar(grammar_type: str = typer.Argument(), side: str = typer.Argument()):
 
 
 @cli.command(context_settings=CTX_SETTINGS)
-def transform(ctx: typer.Context, transformer: str):
+def transform(ctx: typer.Context, transformer: str = typer.Argument(help="Name of the transformer to use.")):
     """
     Transform the current deck using the specified TRANSFORMER.
     Additional keyword arguments can be passed to the transformer.

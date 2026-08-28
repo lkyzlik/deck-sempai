@@ -24,35 +24,19 @@ class PromptLoader:
             self.prompts = toml.load(f)
 
 
-    def _get_template(self,key: str) -> str:
+    def _get_template(self, key: str) -> str | None:
         prompts = self.prompts
-        template = ""
         for part in key.split("."):
-            if isinstance(prompts, str):
-                raise ValueError(f"Prompt template not found for key: {key}")
-            prompts = prompts.get(part, prompts.get("default"))
-            if isinstance(prompts, str):
-                template = template + prompts
-            else:
-                template = template + prompts.get(part, prompts.get('default', ''))
-            
-        return template
+            prompts = prompts.get(part)
+            if prompts is None:
+                return None
+
+        if isinstance(prompts, str):
+            return prompts
+                
+        return None
 
 
-    def get_prompt(self, key: str, placeholders: PromptPlaceholders = PromptPlaceholders()) -> str:
+    def get_prompt(self, key: str, placeholders: PromptPlaceholders = PromptPlaceholders()) -> str | None:
         template = self._get_template(key)
-        return template.format(**placeholders.to_dict())
-    
-
-    def get_subkeys(self, key: str, include_leafs: bool = True) -> list[str]:
-        prompts = self.prompts
-        for part in key.split("."):
-            if part not in prompts:
-                raise ValueError(f"Prompt template not found for key: {key}")
-            prompts = prompts[part]
-        if not isinstance(prompts, dict):
-            raise ValueError(f"No subkeys found for key: {key}")
-        if include_leafs:
-            return list(prompts.keys())
-        else:
-            return [k for k, v in prompts.items() if isinstance(v, dict)]
+        return template.format(**placeholders.to_dict()) if template else None

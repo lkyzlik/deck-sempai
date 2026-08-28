@@ -11,9 +11,12 @@ from interfaces.Logger import LoggerProgress
 
 
 class RichConsoleFrontend:
-    COLOR_MAIN_DIM = "#8d6923"
-    COLOR_MAIN = "#fae9c8"
-    COLOR_SOUND = "#8b0000"
+    COLOR_PRIMARY = "#fae9c8"
+    COLOR_SECONDARY = "#a8813a"
+    COLOR_ACCENT = "#ca3333"
+    COLOR_INFO = "blue"
+    COLOR_WARNING = "yellow"
+    COLOR_ERROR = "red"
 
     def __init__(self, console: Console = Console()):
         self.console = console
@@ -23,7 +26,7 @@ class RichConsoleFrontend:
         text = Text()
         text.append(field.get_text_oneline())
         for sound in field.sounds:
-            text.append(Text(" [♪]", style=self.COLOR_SOUND))
+            text.append(Text(" [♪]", style=self.COLOR_ACCENT))
         return text
 
 
@@ -33,22 +36,22 @@ class RichConsoleFrontend:
 
     def info(self, message: str):
         text = Text()
-        text.append("Info: ", style="bold blue")
-        text.append(message, style="green")
+        text.append("Info: ", style="bold " + self.COLOR_INFO)
+        text.append(message, style=self.COLOR_INFO)
         self.console.print(text)
 
 
     def error(self, message: str):
         text = Text()
-        text.append("Error: ", style="bold red")
-        text.append(message, style="red")
+        text.append("Error: ", style="bold " + self.COLOR_ERROR)
+        text.append(message, style=self.COLOR_ERROR)
         self.console.print(text)
 
 
     def warning(self, message: str):
         text = Text()
-        text.append("Warning: ", style="bold yellow")
-        text.append(message, style="yellow")
+        text.append("Warning: ", style="bold " + self.COLOR_WARNING)
+        text.append(message, style=self.COLOR_WARNING)
         self.console.print(text)
 
 
@@ -76,9 +79,9 @@ class RichConsoleFrontend:
         table = Table(
             show_header=True,
             box=box.DOUBLE_EDGE,
-            border_style=self.COLOR_MAIN_DIM,
-            header_style=self.COLOR_MAIN + " bold",
-            row_styles=[self.COLOR_MAIN, self.COLOR_MAIN_DIM],
+            border_style=self.COLOR_SECONDARY,
+            header_style=self.COLOR_PRIMARY + " bold",
+            row_styles=[self.COLOR_PRIMARY, self.COLOR_SECONDARY],
         )
         table.add_column("#")
         table.add_column("☖ Front")
@@ -106,13 +109,13 @@ class RichConsoleFrontend:
     def show_deck_metadata(self, meta: DeckMeta):
         for key, value in meta.to_dict().items():
             text = Text()
-            text.append(f"{key}: ", style=self.COLOR_MAIN_DIM + " bold")
-            text.append(str(value), style=self.COLOR_MAIN_DIM)
+            text.append(f"{key}: ", style=self.COLOR_SECONDARY + " bold")
+            text.append(str(value), style=self.COLOR_SECONDARY)
             self.console.print(text)
 
 
     def show_deck_name(self, name: str):
         text = Text()
-        text.append("Deck: ", style=self.COLOR_MAIN + " bold")
-        text.append(name, style=self.COLOR_MAIN)
+        text.append("Deck: ", style=self.COLOR_PRIMARY + " bold")
+        text.append(name, style=self.COLOR_PRIMARY)
         self.console.print(text)

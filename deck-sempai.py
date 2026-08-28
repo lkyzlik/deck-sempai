@@ -3,7 +3,7 @@ from typing import Optional
 
 from App import App
 from Deck import Side
-from Enums import GrammarType
+from Enums import GrammarRule
 
 # TODO: load from .toml file
 CONFIG = {
@@ -85,12 +85,13 @@ def sound(side: str = typer.Argument(help=f"Side of the card: {', '.join([s.valu
 
 
 @cli.command()
-def grammar(grammar_type: str = typer.Argument(help=f"Type of grammar help: {', '.join([g.value for g in GrammarType])}"),
+def grammar(grammar_rule: str = typer.Argument(help=f"Comma-separated grammar help rules: {', '.join([g.value for g in GrammarRule])}"),
             side: str = typer.Argument(help=f"Side of the card: {', '.join([s.value for s in Side])}")):
     """
-    Add grammar help of the specified GRAMMAR_TYPE to the specified SIDE of the current deck.
+    Add grammar help of the specified GRAMMAR_RULE(s) to the specified SIDE of the current deck.
+    Multiple rules can be combined as a comma-separated list, e.g. 'noun_article,noun_plural'.
     """
-    app.transform("add-grammar", grammar_type=grammar_type, side=side)
+    app.transform("add-grammar", grammar_rule=grammar_rule, side=side)
 
 
 @cli.command(context_settings=CTX_SETTINGS)

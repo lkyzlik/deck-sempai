@@ -6,31 +6,21 @@
 #
 # Use {{ }} to escape curly braces.
 
-translate = "Translate the following text from {lang_from} to {lang_to}. Only return the translated text without any additional formatting or explanation.\n"
+translate = "Translate the following text from {lang_from} to {lang_to}. Only return the translated text without any additional formatting or explanation."
 
-[grammar]
-default = "You are a helpful assistant for editing words in {lang_from}. If the following text is not in {lang_from}, just return the exact input text without any changes, including parts in curly braces, and ignore rest of the instructions.\n"
+pos = "Classify the following text in {lang_from} into one of the following categories: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, none. Only return the category without any additional formatting or explanation. Use 'none' if the text does not belong to any of the categories or you are unsure."
 
-[grammar.noun_article]
-default = ""
-da = """- If it's not a noun, just return the exact input text without any changes, including parts in curly braces.
-- If it's a noun, add correct indefinite article 'en' or 'et'. Eg. for 'bil' output 'en bil', for 'hus' output 'et hus'. Make sure the article is before the word.
-"""
+[noun.article]
+da = "Return only the correct indefinite article for the word: 'en' or 'et'. Example: for 'bil' return 'en', for 'hus' return 'et'. Only return the article without any additional formatting or explanation. Return 'none' if you're unsure. Check that what you are returning is correct, only valid options are: en, et, none"
 
-[grammar.noun_plural]
-default = ""
-da = """- If it's not a noun, just return the exact input text without any changes, including parts in curly braces.
-- If it's a noun, add plural suffix in curly braces after the word. Eg. for 'bil' output 'bil {{-er}}', for 'hus' output 'hus {{-er}}'. If the plural is the same as singular, use empty suffix '{{-}}'. Make sure the suffix is after the word.
-"""
+[noun.plural.indefinite]
+da = "The input is a noun in Danish. Return indefinite plural suffix for the noun. Example: for 'bil' return '-er', for 'hus' return '-e'. Only return the suffix without any additional formatting or explanation. If the indefinite plural form changes the word (e.g. 'mand' -> 'mænd'), return the indefinite plural form instead of the suffix. If the plural form is the same as the singular form (e.g. 'fisk' -> 'fisk'), return '-'. Return 'none' if you're unsure."
 
-[grammar.verb_particle]
-default = ""
-da = """- If it's not a verb, just return the exact input text without any changes, including parts in curly braces.
-- If it's a verb, add particle 'at' in front of the word. Eg. for 'køre' output 'at køre', for 'spise' output 'at spise'. Make sure the particle is before the word.
-"""
+[noun.plural.definite]
+da = "The input is a noun in Danish. Return definite plural suffix for the noun. Example: for 'bil' return '-erne', for 'hus' return '-ene'. Only return the suffix without any additional formatting or explanation. If the definite plural form changes the word (e.g. 'mand' -> 'mændene'), return the definite plural form instead of the suffix. If the plural form is the same as the singular form (e.g. 'fisk' -> 'fisk'), return '-'. Return 'none' if you're unsure."
 
-[grammar.verb_tenses]
-default = ""
-da = """- If it's not a verb, just return the exact input text without any changes, including parts in curly braces.
-- If it's a verb, add datid and førnutid in curly braces after the word. Eg. for 'køre' output 'køre {{kørte, har kørt}}', for 'spise' output 'spise {{spiste, har spist}}'.
-"""
+[verb.tense.past]
+da = "The input is a verb in Danish. Return the past tense (datid) form of the verb. Example: for 'gå' return 'gik', for 'spise' return 'spiste'. Only return the past tense form without any additional formatting or explanation. Return 'none' if you're unsure."
+
+[verb.tense.present_perfect]
+da = "The input is a verb in Danish. Return the present perfect tense (fornutid) form of the verb. Example: for 'gå' return 'er gået', for 'spise' return 'har spist'. Only return the present perfect tense form without any additional formatting or explanation. Return 'none' if you're unsure."

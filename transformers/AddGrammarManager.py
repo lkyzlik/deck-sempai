@@ -15,7 +15,7 @@ class AddGrammarManager(Transformer):
 
 
     def transform_deck(self, deck: Deck, side: str = None, lang: str = None,
-                       grammar_type: str = None) -> DeckOpResult:
+                       grammar_rule: str = None) -> DeckOpResult:
         if not side:
             raise DeckOpError(self, "Missing argument: side")
         try:
@@ -34,4 +34,4 @@ class AddGrammarManager(Transformer):
             raise DeckOpError(self, "Missing argument: lang, and no language found in deck metadata")
 
         # For now, always default to the AddGrammarOllamaTransformer
-        return self.transformers['add-grammar-ollama'].transform_deck(deck, side=side, lang=lang, grammar_type=grammar_type)
+        return self.transformers['add-grammar-ollama'].transform_deck(deck, side=side, lang=lang, grammar_rule=grammar_rule)

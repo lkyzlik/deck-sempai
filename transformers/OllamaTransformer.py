@@ -14,7 +14,7 @@ class OllamaTransformer(Transformer):
         self.prog_title = prog_title
 
 
-    def _transform_note(self, note: Note, side_from: Side, side_to: Side, prompt: str, model: str) -> NoteOpResult:
+    def _transform_note(self, note: Note, side_from: Side, side_to: Side, prompt: str, think: bool | str, model: str) -> NoteOpResult:
         field_from = note.get_field(side_from)
         field_to = note.get_field(side_to)
 
@@ -23,7 +23,7 @@ class OllamaTransformer(Transformer):
                 {"role": "user", "content": prompt},
                 {"role": "user", "content": field_from.text}
             ]
-            response: ChatResponse = chat(model, messages=messages, keep_alive='10s')
+            response: ChatResponse = chat(model, messages=messages, keep_alive='10s', think=think)
             field_to.text = response.message.content.strip()
             field_to.sounds = [] # Clear sounds since the text has changed
         except ResponseError as e:
@@ -34,20 +34,20 @@ class OllamaTransformer(Transformer):
 
 
     def _transform_deck(self, deck: Deck, side_from: Side, side_to: Side,
-                        prompt: str,  model: str = None) -> DeckOpResult:
+                        prompt: str,  think: str | bool, model: str = None) -> DeckOpResult:
         with self.logger.progress() as prog:
             task = prog.add_task(f"{self.prog_title}", total=len(deck.notes))
 
             results : list[NoteOpResult] = []
             for note in deck.notes:
-                result = self._transform_note(note, side_from, side_to, prompt, model or self.default_model)
+                result = self._transform_note(note, side_from, side_to, prompt, think, model or self.default_model)
                 results.append(result)
                 prog.update(task, advance=1)
 
         return DeckOpResult(results, op_title="Transformed (AI)")
 
 
-    def transform_deck(self, deck, side: str = None, prompt: str = None, model: str = None) -> DeckOpResult:
+    def transform_deck(self, deck, side: str = None, prompt: str = None, model: str = None, think: str = None) -> DeckOpResult:
         if not side:
             raise DeckOpError(self, "Missing argument: side")
         try:
@@ -59,5 +59,10 @@ class OllamaTransformer(Transformer):
 
         if not prompt:
             raise DeckOpError(self, "Missing argument: prompt")
-        
-        return self._transform_deck(deck, side_from, side_to, prompt, model)
+
+        if think is None:
+            think = False
+        elif think not in ["low", "medium", "high"]:
+            think = bool(think)
+            
+        return self._transform_deck(deck, side_from, side_to, prompt, think, model)

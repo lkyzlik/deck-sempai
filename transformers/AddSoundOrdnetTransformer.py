@@ -1,6 +1,8 @@
 import re
 import time
 
+from pathlib import Path
+
 from Deck import Deck, Field
 from Enums import Side
 from DeckOperator import NoteOpResult, DeckOpResult, DeckOpError
@@ -10,9 +12,9 @@ from transformers.Transformer import Transformer
 
 
 class AddSoundOrdnetTransformer(Transformer):
-    def __init__(self, logger: Logger, scraper: OrdnetScraper):
+    def __init__(self, logger: Logger, media_dir: Path):
         super().__init__(logger)
-        self.scraper = scraper
+        self.scraper = OrdnetScraper(media_dir)
 
 
     def _extract_word(self, text: str) -> str | None:

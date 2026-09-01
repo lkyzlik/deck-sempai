@@ -1,6 +1,6 @@
 import httpx
 from pathlib import Path
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 
 class OrdnetScraper:
@@ -19,14 +19,71 @@ class OrdnetScraper:
         self.output_dir = output_dir
 
 
-    def _get_word_page(self, word: str) -> str | None:
+    def _get_word_html(self, word: str) -> str | None:
         try:
             resp = self.client.get(self.BASE_URL, params={"query": word}, follow_redirects=True, timeout=15)
             resp.raise_for_status()
         except httpx.HTTPError as e:
             raise OrdnetScraperError(f"Can't fetch word page")
         return resp.text
-    
+
+
+    def _find_entry(self, word: str) -> Tag:
+        html = self._get_word_html(word)
+        if not html:
+            raise OrdnetScraperError(f"Can't fetch dictionary page for {word!r}")
+
+        soup = BeautifulSoup(html, "html.parser")
+        for headword in soup.find_all("h1", class_="modern-match"):
+            # The headword text is followed by a superscript homonym number (e.g. "arbejde <sup>1</sup>"),
+            # so only look at the leading text node when matching.
+            base = (headword.find(string=True, recursive=False) or "").strip()
+            if base.lower() == word.lower():
+                entry = headword.find_parent("div", class_="artikel")
+                if entry:
+                    return entry
+
+        raise OrdnetScraperError(f"Can't find a dictionary entry for {word!r}")
+
+
+    def get_pos_key(self, word: str) -> str | None:
+        pos_span = self._find_entry(word).find(class_="part-of-speech")
+        return pos_span.get("data-pos-key") if pos_span else None
+
+
+    def get_gender(self, word: str) -> str | None:
+        pos_span = self._find_entry(word).find(class_="part-of-speech")
+        if not pos_span:
+            return None
+        gender_text = pos_span.parent.get_text(" ", strip=True)
+        if "fælleskøn" in gender_text:
+            return "fælleskøn"
+        if "intetkøn" in gender_text:
+            return "intetkøn"
+        return None
+
+
+    def get_inflections(self, word: str) -> list[str]:
+        row = self._find_entry(word).find("div", id="id-boj")
+        button = row.find("button", class_="kilde") if row else None
+        if not button:
+            raise OrdnetScraperError(f"Can't find inflection info for {word!r}")
+        return [form.strip() for form in button.get_text(strip=True).split(",")]
+
+
+    def get_auxiliary_verbs(self, word: str) -> set[str]:
+        # Verbs are annotated per valency pattern (one per sense) with which auxiliary
+        # verb(s) ("have" and/or "være") form the perfect tense with that pattern. Verbs
+        # that always take "have" aren't annotated at all.
+        auxiliaries = set()
+        for label in self._find_entry(word).find_all("span", class_="stempelSmallNoBorder", string="HJÆLPEVERBUM"):
+            text = label.parent.get_text(" ", strip=True).split("HJÆLPEVERBUM")[-1]
+            if "have" in text:
+                auxiliaries.add("have")
+            if "være" in text:
+                auxiliaries.add("være")
+        return auxiliaries
+
 
     def _extract_sound_url(self, html: str) -> str:
         soup = BeautifulSoup(html, "html.parser")
@@ -55,7 +112,7 @@ class OrdnetScraper:
             resp = self.client.get(url, timeout=15)
             resp.raise_for_status()
         except httpx.HTTPError as e:
-            raise OrdnetScraperError(f"Can't download sound file")
+            raise OrdnetScraperError(f"Can't download file")
         
         if not output_path.parent.exists():
             output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -65,7 +122,7 @@ class OrdnetScraper:
 
 
     def download_sound(self, word: str, filename: str) -> Path:
-        html = self._get_word_page(word)
+        html = self._get_word_html(word)
         sound_url = self._extract_sound_url(html)
         output_path = self.output_dir / filename
         self._download_file(sound_url, output_path)

@@ -19,7 +19,6 @@ from importers.LineImporter import LineImporter
 
 from interfaces.AnkiConnect import AnkiConnect
 from interfaces.RichConsoleFrontend import RichConsoleFrontend
-from interfaces.OrdnetScraper import OrdnetScraper
 
 from transformers.Transformer import Transformer
 from transformers.AddSoundManager import AddSoundManager
@@ -28,6 +27,7 @@ from transformers.RemoveSoundTransformer import RemoveSoundTransformer
 from transformers.OllamaTransformer import OllamaTransformer
 from transformers.TranslateOllamaTransformer import TranslateOllamaTransformer
 from transformers.AddGrammarOllamaTransformer import AddGrammarOllamaTransformer
+from transformers.AddGrammarOrdnetTransformer import AddGrammarOrdnetTransformer
 from transformers.AddGrammarManager import AddGrammarManager
 from transformers.TranslateManager import TranslateManager
 
@@ -58,11 +58,12 @@ class App:
             "line": LineImporter(self.frontend),
         }
         self.transformers : dict[str, Transformer] = {
-            "add-sound-ordnet": AddSoundOrdnetTransformer(self.frontend, OrdnetScraper(self.media_dir)),
+            "add-sound-ordnet": AddSoundOrdnetTransformer(self.frontend, self.media_dir),
             "remove-sound": RemoveSoundTransformer(self.frontend),
             "ollama": OllamaTransformer(self.frontend),
             "translate-ollama": TranslateOllamaTransformer(self.frontend),
             "add-grammar-ollama": AddGrammarOllamaTransformer(self.frontend),
+            "add-grammar-ordnet": AddGrammarOrdnetTransformer(self.frontend, self.media_dir),
         }
 
         # Add managers (this must be done after all individual deck operators are created)

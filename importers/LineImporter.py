@@ -13,8 +13,8 @@ class LineImporter(Importer):
     def import_deck(self, front: str = None, back: str = "",
                     model: str = Model.BASIC_REVERSED,
                     tags: str = None) -> Deck:
-        if not front:
-            raise DeckOpError(self, "Missing argument: front")
+        if not front and not back:
+            raise DeckOpError(self, "Missing argument: front or back")
 
         try:
             model = Model(model)
@@ -23,4 +23,4 @@ class LineImporter(Importer):
 
         tags = [t.strip() for t in tags.split(',')] if tags else []
 
-        return self._import_deck(front, back, model, tags)
+        return self._import_deck(front or "", back, model, tags)

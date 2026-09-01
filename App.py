@@ -8,6 +8,7 @@ from rich.text import Text
 
 from Deck import Deck, DeckMeta
 from DeckOperator import DeckOpResult, DeckOpError
+from Enums import GrammarRule
 
 from exporters.Exporter import Exporter
 from exporters.AnkiExporter import AnkiExporter
@@ -98,8 +99,8 @@ class App:
 
     def _preview(self, title: str, deck: Deck, results: DeckOpResult = None) -> bool:
         self.frontend.print(title)
-        self.frontend.show_deck(deck, results)
-        response = input("Do you want to continue? (y/n)\n")
+        self.frontend.show_deck(deck, results, include_metadata=False)
+        response = input("Do you want to save changes? (y/n)\n")
         return response.lower() == "y"
 
 
@@ -160,6 +161,95 @@ class App:
         except DeckOpError as e:
             self.frontend.error(str(e))
             return
+
+
+    def _parse_add_line(self, line: str) -> tuple[str, str, str, str]:
+        parts = [part.strip() for part in line.split(";")]
+        parts += [""] * (4 - len(parts))
+        front, back, model, tags = parts[:4]
+        return front or None, back or None, model or None, tags or None
+
+
+    def _add_notes(self, entries: list[tuple[str, str, str, str]]):
+        if not entries:
+            return
+
+        try:
+            deck: Deck = self._load_deck()
+
+            note_deck = Deck()
+            note_deck.meta = deck.meta
+            translate_forward = []
+            translate_backward = []
+
+            for front, back, model, tags in entries:
+                line_kwargs = {"front": front, "back": back or "", "tags": tags}
+                if model:
+                    line_kwargs["model"] = model
+                try:
+                    imported: Deck = self.importers["line"].import_deck(**line_kwargs)
+                except DeckOpError as e:
+                    self.frontend.error(str(e))
+                    continue
+
+                note = imported.notes[0]
+                note_deck.notes.append(note)
+                if not back:
+                    translate_forward.append(note)
+                elif not front:
+                    translate_backward.append(note)
+
+            if not note_deck.notes:
+                return
+
+            if translate_forward:
+                sub_deck = Deck()
+                sub_deck.meta = deck.meta
+                sub_deck.notes = translate_forward
+                self.transformers["translate"].transform_deck(sub_deck, side="front-back")
+            if translate_backward:
+                sub_deck = Deck()
+                sub_deck.meta = deck.meta
+                sub_deck.notes = translate_backward
+                self.transformers["translate"].transform_deck(sub_deck, side="back-front")
+
+            grammar_rule = ",".join(g.value for g in GrammarRule)
+            for side in ("front", "back"):
+                try:
+                    self.transformers["add-sound"].transform_deck(note_deck, side=side)
+                except DeckOpError as e:
+                    self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
+                try:
+                    self.transformers["add-grammar"].transform_deck(note_deck, side=side, grammar_rule=grammar_rule)
+                except DeckOpError as e:
+                    self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
+
+            if self._preview("Preview:", note_deck):
+                self._save_deck(deck + note_deck)
+
+        except DeckOpError as e:
+            self.frontend.error(str(e))
+            return
+
+        self._clear_temp_files()
+
+
+    def add(self, front: str = None, back: str = None, model: str = None, tags: str = None):
+        if front or back:
+            self._add_notes([(front, back, model, tags)])
+            return
+
+        self.frontend.print("Enter notes as 'FRONT; BACK; MODEL; TAGS' (FRONT or BACK required). Enter 'q' after last note.")
+        entries = []
+        while True:
+            line = input("> ").strip()
+            if line.lower() == "q":
+                break
+            if not line:
+                continue
+            entries.append(self._parse_add_line(line))
+
+        self._add_notes(entries)
 
 
     def show(self):

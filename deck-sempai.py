@@ -3,7 +3,7 @@ from typing import Optional
 
 from App import App
 from Deck import Side
-from Enums import GrammarRule
+from Enums import GrammarRule, Model
 
 # TODO: load from .toml file
 CONFIG = {
@@ -61,6 +61,24 @@ def import_(ctx: typer.Context, importer: str = typer.Argument(help="Name of the
     Additional keyword arguments can be passed to the importer.
     """
     app.import_(importer, **get_kwargs(ctx))
+
+
+@cli.command()
+def add(front: Optional[str] = typer.Argument(None, help="Front text of the new note. Filled in via translation if omitted (requires --back)."),
+        back: Optional[str] = typer.Option(None, "--back", "-b", help="Back text of the new note. Filled in via translation if omitted (requires FRONT)."),
+        model: Optional[str] = typer.Option(None, "--model", "-m", help=f"Note model: {', '.join([m.value for m in Model])}"),
+        tags: Optional[str] = typer.Option(None, "--tags", "-t", help="Comma-separated tags to add to the note.")):
+    """
+    Add a new note with the given FRONT and/or BACK text. Whichever side is omitted is
+    filled in via translation from the other; at least one must be given. Pronunciation
+    sound and grammar help are then added to both sides (skipped on a side whose language
+    doesn't support them).
+
+    If called with neither FRONT nor --back, enters an interactive mode where notes can
+    be entered one per line as 'FRONT; BACK; MODEL; TAGS' (FRONT or BACK required),
+    until 'q' is entered.
+    """
+    app.add(front, back, model, tags)
 
 
 @cli.command()

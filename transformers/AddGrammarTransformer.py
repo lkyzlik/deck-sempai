@@ -34,6 +34,12 @@ class AddGrammarTransformer(Transformer):
         return f"{past}, {present_perfect}"
 
 
+    def _get_noun_plural(self, word: str) -> str:
+        indefinite = self.tool.noun_plural_suffix(word)
+        definite = self.tool.noun_plural_suffix(word, definite=True)
+        return f"{indefinite}, {definite}"
+
+
     def _fill_result_format(self, values: dict[str, str]) -> str:
         text = re.sub(r'\[(\w+)\]', lambda m: values.get(m.group(1)) or '', self.RESULT_FORMAT)
         text = re.sub(r'\{\s*\}', '', text)       # drop braces left empty by unused suffixes
@@ -65,7 +71,7 @@ class AddGrammarTransformer(Transformer):
         # Each entry maps a grammar rule to its (placeholder name, value-fetching method).
         handlers: dict[GrammarRule, tuple[str, callable]] = {
             GrammarRule.NOUN_ARTICLE: ("ARTICLE", self.tool.noun_article),
-            GrammarRule.NOUN_PLURAL: ("PLURAL", self.tool.noun_plural_suffix),
+            GrammarRule.NOUN_PLURAL: ("PLURAL", self._get_noun_plural),
             GrammarRule.VERB_TENSES: ("TENSES", self._get_verb_tenses),
         }
         values = {"WORD": word}

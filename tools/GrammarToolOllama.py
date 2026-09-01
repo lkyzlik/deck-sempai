@@ -62,12 +62,9 @@ class GrammarToolOllama(GrammarTool):
         return self._ask(f"noun.article.{self.lang.short()}", text, "determine the article")
 
 
-    def noun_plural_suffix(self, text: str) -> str:
-        indefinite = self._ask(f"noun.plural.indefinite.{self.lang.short()}", text,
-                                "determine the indefinite plural")
-        definite = self._ask(f"noun.plural.definite.{self.lang.short()}", text,
-                              "determine the definite plural")
-        return f"{indefinite}, {definite}"
+    def noun_plural_suffix(self, text: str, definite: bool = False) -> str:
+        key = "definite" if definite else "indefinite"
+        return self._ask(f"noun.plural.{key}.{self.lang.short()}", text, f"determine the {key} plural")
 
 
     def verb_tense(self, text: str, tense: str) -> str:

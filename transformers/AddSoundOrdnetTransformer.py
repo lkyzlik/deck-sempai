@@ -47,7 +47,7 @@ class AddSoundOrdnetTransformer(Transformer):
             sound_path = self.scraper.download_sound(word, f"ordnet_{deck_name}_{word}.mp3")
             field.add_sound(sound_path.name)
         except OrdnetScraperError as e:
-            self._warning(f"Can't download sound for {word!r}: {e}")
+            self._warning(f"Can't download sound for {word!r}")
             if not is_last:
                 time.sleep(0.5) # Be polite to the server even on errors
             return NoteOpResult(success=False)

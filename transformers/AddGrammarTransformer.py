@@ -49,16 +49,9 @@ class AddGrammarTransformer(Transformer):
     def _transform_note(self, note: Note, side: Side, grammar_rules: list[GrammarRule]) -> NoteOpResult:
         field = note.get_field(side)
 
-        # Extract the word to be transformed
-        try:
-            word = self.tool.extract_word(field.text)
-        except GrammarToolError as e:
-            self._warning(str(e))
-            return NoteOpResult(success=False)
-
         # Classify the word once, then keep only the requested rules that match its part of speech
         try:
-            pos = self.tool.pos(word)
+            pos = self.tool.pos(field.text)
         except GrammarToolError as e:
             self._warning(str(e))
             pos = None
@@ -74,11 +67,11 @@ class AddGrammarTransformer(Transformer):
             GrammarRule.NOUN_PLURAL: ("PLURAL", self._get_noun_plural),
             GrammarRule.VERB_TENSES: ("TENSES", self._get_verb_tenses),
         }
-        values = {"WORD": word}
+        values = {"WORD": self.tool.extract_word(field.text, keep_markers=True)}
         for grammar_rule in applicable_rules:
             placeholder, get_value = handlers[grammar_rule]
             try:
-                values[placeholder] = get_value(word)
+                values[placeholder] = get_value(field.text)
             except GrammarToolError as e:
                 self._warning(str(e))
                 return NoteOpResult(success=False)

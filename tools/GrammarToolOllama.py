@@ -1,5 +1,3 @@
-import re
-
 from pathlib import Path
 from ollama import chat, ChatResponse, ResponseError
 
@@ -15,7 +13,7 @@ class GrammarToolOllama(GrammarTool):
         self.pl = PromptLoader(prompts_path)
 
 
-    def _ask(self, prompt_key: str, text: str, failure: str) -> str:
+    def _ask(self, prompt_key: str, word: str, failure: str) -> str:
         prompt = self.pl.get_prompt(prompt_key, PromptPlaceholders(lang_from=self.lang))
         if not prompt:
             raise GrammarToolError(f"No {prompt_key!r} prompt found")
@@ -23,49 +21,35 @@ class GrammarToolOllama(GrammarTool):
         try:
             messages = [
                 {"role": "user", "content": prompt},
-                {"role": "user", "content": text}
+                {"role": "user", "content": word}
             ]
             response: ChatResponse = chat(self.model, messages=messages, think=False, keep_alive='10s')
             answer = response.message.content.strip().lower()
         except ResponseError as e:
-            raise GrammarToolError(f"AI request failed for {text!r}") from e
+            raise GrammarToolError(f"AI request failed for {word!r}") from e
 
         if answer == 'none':
-            raise GrammarToolError(f"AI couldn't {failure} for {text!r}")
+            raise GrammarToolError(f"AI couldn't {failure} for {word!r}")
 
         return answer
 
 
-    def extract_word(self, text: str) -> str:
-        # Remove any text in braces (), [], <>, {}
-        text = re.sub(r'[\(\[\{<][^)\]\}>]*[\)\]\}>]', '', text)
-        # Remove Danish articles and infinitive markers
-        text = re.sub(r'^(en|et|den|det|at)\s+', '', text, flags=re.IGNORECASE)
-        # Remove numbers
-        text = re.sub(r'\d+', '', text)
-        # Remove punctuation
-        text = re.sub(r'[^\w\s]', '', text)
-        # Remove whitespace around
-        text = text.strip()
-
-        words = text.split()
-        if len(words) != 1:
-            raise GrammarToolError(f"Can't extract a single word from {text!r}")
-        return words[0]
-
-
     def pos(self, text: str) -> str:
-        return self._ask("pos", text, "classify the part of speech")
+        word = self.extract_word(text, keep_markers=True, keep_articles=True)
+        return self._ask("pos", word, "classify the part of speech")
 
 
     def noun_article(self, text: str) -> str:
-        return self._ask(f"noun.article.{self.lang.short()}", text, "determine the article")
+        word = self.extract_word(text, keep_articles=True)
+        return self._ask(f"noun.article.{self.lang.short()}", word, "determine the article")
 
 
     def noun_plural_suffix(self, text: str, definite: bool = False) -> str:
         key = "definite" if definite else "indefinite"
-        return self._ask(f"noun.plural.{key}.{self.lang.short()}", text, f"determine the {key} plural")
+        word = self.extract_word(text, keep_articles=True)
+        return self._ask(f"noun.plural.{key}.{self.lang.short()}", word, f"determine the {key} plural")
 
 
     def verb_tense(self, text: str, tense: str) -> str:
-        return self._ask(f"verb.tense.{tense}.{self.lang.short()}", text, f"determine the {tense} tense")
+        word = self.extract_word(text, keep_markers=True)
+        return self._ask(f"verb.tense.{tense}.{self.lang.short()}", word, f"determine the {tense} tense")

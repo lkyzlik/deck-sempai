@@ -34,46 +34,10 @@ class GrammarToolOrdnet(GrammarTool):
         return word + form[1:] if form.startswith("-") else form
 
 
-    def pos(self, text: str) -> str:
-        try:
-            pos_key = self.scraper.get_pos_key(text)
-        except OrdnetScraperError as e:
-            raise GrammarToolError(str(e)) from e
-
-        pos = self.POS_MAP.get(pos_key)
-        if not pos:
-            raise GrammarToolError(f"Can't classify the part of speech for {text!r}")
-        return pos
-
-
-    def noun_article(self, text: str) -> str:
-        try:
-            gender = self.scraper.get_gender(text)
-        except OrdnetScraperError as e:
-            raise GrammarToolError(str(e)) from e
-
-        if gender == "fælleskøn":
-            return "en"
-        if gender == "intetkøn":
-            return "et"
-        raise GrammarToolError(f"Can't determine the article for {text!r}")
-
-
-    def noun_plural_suffix(self, text: str, definite: bool = False) -> str:
-        try:
-            forms = self.scraper.get_inflections(text)
-        except OrdnetScraperError as e:
-            raise GrammarToolError(str(e)) from e
-
-        if len(forms) < 3:
-            raise GrammarToolError(f"Can't determine the plural for {text!r}")
-        # Inflection order for nouns is: definite singular, indefinite plural, definite plural
-        return forms[2] if definite else forms[1]
-
-
     def _auxiliary_verb(self, text: str) -> str:
+        word = self.extract_word(text)
         try:
-            auxiliaries = self.scraper.get_auxiliary_verbs(text)
+            auxiliaries = self.scraper.get_auxiliary_verbs(word)
         except OrdnetScraperError as e:
             raise GrammarToolError(str(e)) from e
 
@@ -86,17 +50,58 @@ class GrammarToolOrdnet(GrammarTool):
         return "er/har"
 
 
-    def verb_tense(self, text: str, tense: str) -> str:
+    def pos(self, text: str) -> str:
+        word = self.extract_word(text)
         try:
-            forms = self.scraper.get_inflections(text)
+            pos_key = self.scraper.get_pos_key(word)
+        except OrdnetScraperError as e:
+            raise GrammarToolError(str(e)) from e
+
+        pos = self.POS_MAP.get(pos_key)
+        if not pos:
+            raise GrammarToolError(f"Can't classify the part of speech for {word!r}")
+        return pos
+
+
+    def noun_article(self, text: str) -> str:
+        word = self.extract_word(text)
+        try:
+            gender = self.scraper.get_gender(word)
+        except OrdnetScraperError as e:
+            raise GrammarToolError(str(e)) from e
+
+        if gender == "fælleskøn":
+            return "en"
+        if gender == "intetkøn":
+            return "et"
+        raise GrammarToolError(f"Can't determine the article for {word!r}")
+
+
+    def noun_plural_suffix(self, text: str, definite: bool = False) -> str:
+        word = self.extract_word(text)
+        try:
+            forms = self.scraper.get_inflections(word)
         except OrdnetScraperError as e:
             raise GrammarToolError(str(e)) from e
 
         if len(forms) < 3:
-            raise GrammarToolError(f"Can't determine the {tense} tense for {text!r}")
+            raise GrammarToolError(f"Can't determine the plural for {word!r}")
+        # Inflection order for nouns is: definite singular, indefinite plural, definite plural
+        return forms[2] if definite else forms[1]
+
+
+    def verb_tense(self, text: str, tense: str) -> str:
+        word = self.extract_word(text)
+        try:
+            forms = self.scraper.get_inflections(word)
+        except OrdnetScraperError as e:
+            raise GrammarToolError(str(e)) from e
+
+        if len(forms) < 3:
+            raise GrammarToolError(f"Can't determine the {tense} tense for {word!r}")
         # Inflection order for verbs is: present, past, past participle
         if tense == "past":
-            return self._apply_form(text, forms[1])
+            return self._apply_form(word, forms[1])
         if tense == "present_perfect":
-            return f"{self._auxiliary_verb(text)} {self._apply_form(text, forms[2])}"
+            return f"{self._auxiliary_verb(word)} {self._apply_form(word, forms[2])}"
         raise GrammarToolError(f"Unsupported tense {tense!r}")

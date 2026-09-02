@@ -20,7 +20,7 @@ class TranslateOllamaTransformer(Transformer):
                         lang_from: Language, lang_to: Language, model: str) -> DeckOpResult:
         placeholders = PromptPlaceholders(lang_from=lang_from, lang_to=lang_to)
         prompt = self.pl.get_prompt("translate", placeholders)
-        return self.ollama._transform_deck(deck, side_from, side_to, prompt, think=False, model=model)
+        return self.ollama._transform_deck(deck, side_from, side_to, prompt, think=False, model=model, temperature=0)
 
 
     def transform_deck(self, deck: Deck, side: str = Side.FRONT + "-" + Side.BACK,

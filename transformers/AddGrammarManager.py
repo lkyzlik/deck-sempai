@@ -12,7 +12,7 @@ class AddGrammarManager(Transformer):
     """
     # List of transformers to use for each language in order of preference
     language_map = {
-        Language.DANISH: ("add-grammar-ollama",),
+        Language.DANISH: ("add-grammar-ordnet",),
     }
 
 

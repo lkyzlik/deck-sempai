@@ -23,7 +23,8 @@ class GrammarToolOllama(GrammarTool):
                 {"role": "user", "content": prompt},
                 {"role": "user", "content": word}
             ]
-            response: ChatResponse = chat(self.model, messages=messages, think=False, keep_alive='10s')
+            options = {"temperature": 0}  # Deterministic output
+            response: ChatResponse = chat(self.model, messages=messages, think=False, keep_alive='10s', options=options)
             answer = response.message.content.strip().lower()
         except ResponseError as e:
             raise GrammarToolError(f"AI request failed for {word!r}") from e

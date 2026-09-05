@@ -24,23 +24,32 @@ class GrammarTool:
     def __init__(self, lang: Language) -> None:
         self.lang = lang
 
-    def extract_word(self, text: str, keep_markers: bool = False, keep_articles: bool = False) -> str:
+    def extract_word(self, text: str) -> dict[str, str | None]:
         # Remove any text in braces (), [], <>, {}
-        text = re.sub(r'[\(\[\{<][^)\]\}>]*[\)\]\}>]', '', text)
-        # Remove articles
-        if not keep_articles:
-            articles = self.ARTICLES.get(self.lang, ())
-            if articles:
-                text = re.sub(rf'^({"|".join(articles)})\s+', '', text, flags=re.IGNORECASE)
-        # Remove infinitive markers
-        if not keep_markers:
-            markers = self.MARKERS.get(self.lang, ())
-            if markers:
-                text = re.sub(rf'^({"|".join(markers)})\s+', '', text, flags=re.IGNORECASE)
-        # Remove punctuation
-        text = re.sub(r'[^\w\s]', '', text)
-        # Remove whitespace around
-        return text.strip()
+        text = re.sub(r'[\(\[\{<][^)\]\}>]*[\)\]\}>]', '', text).strip()
+
+        # Pull off a leading article, if any
+        article = None
+        articles = self.ARTICLES.get(self.lang, ())
+        if articles:
+            match = re.match(rf'^({"|".join(articles)})\s+', text, flags=re.IGNORECASE)
+            if match:
+                article = match.group(1)
+                text = text[match.end():]
+
+        # Pull off a leading infinitive marker, if any
+        marker = None
+        markers = self.MARKERS.get(self.lang, ())
+        if markers:
+            match = re.match(rf'^({"|".join(markers)})\s+', text, flags=re.IGNORECASE)
+            if match:
+                marker = match.group(1)
+                text = text[match.end():]
+
+        # Remove punctuation and surrounding whitespace from what's left
+        word = re.sub(r'[^\w\s]', '', text).strip()
+
+        return {"word": word, "articles": article, "markers": marker}
 
     def pos(self, text: str) -> str:
         raise NotImplementedError

@@ -67,7 +67,8 @@ class AddGrammarTransformer(Transformer):
             GrammarRule.NOUN_PLURAL: ("PLURAL", self._get_noun_plural),
             GrammarRule.VERB_TENSES: ("TENSES", self._get_verb_tenses),
         }
-        values = {"WORD": self.tool.extract_word(field.text, keep_markers=True)}
+        extracted = self.tool.extract_word(field.text)
+        values = {"WORD": " ".join(filter(None, [extracted["markers"], extracted["word"]]))}
         for grammar_rule in applicable_rules:
             placeholder, get_value = handlers[grammar_rule]
             try:

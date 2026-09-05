@@ -101,7 +101,7 @@ class GrammarToolOrdnet(GrammarTool):
 
 
     def pos(self, text: str) -> str:
-        word = self.extract_word(text)
+        word = self.extract_word(text)["word"]
         try:
             pos_key = self._get_pos_key(word)
         except OrdnetIntegrationError as e:
@@ -114,7 +114,7 @@ class GrammarToolOrdnet(GrammarTool):
 
 
     def noun_article(self, text: str) -> str:
-        word = self.extract_word(text)
+        word = self.extract_word(text)["word"]
         try:
             gender = self._get_gender(word)
         except OrdnetIntegrationError as e:
@@ -128,7 +128,7 @@ class GrammarToolOrdnet(GrammarTool):
 
 
     def noun_plural_suffix(self, text: str, definite: bool = False) -> str:
-        word = self.extract_word(text)
+        word = self.extract_word(text)["word"]
         try:
             forms = self._get_inflections(word)
         except OrdnetIntegrationError as e:
@@ -141,7 +141,7 @@ class GrammarToolOrdnet(GrammarTool):
 
 
     def verb_tense(self, text: str, tense: str) -> str:
-        word = self.extract_word(text)
+        word = self.extract_word(text)["word"]
         try:
             forms = self._get_inflections(word)
         except OrdnetIntegrationError as e:

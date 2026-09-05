@@ -51,6 +51,19 @@ class GrammarTool:
 
         return {"word": word, "articles": article, "markers": marker}
 
+    def verb_infinitive_marker(self, text: str) -> str:
+        # The infinitive marker is a fixed per-language word (e.g. "at" for Danish, "to" for
+        # English), so unlike the other grammar rules this doesn't need a tool-specific lookup.
+        markers = self.MARKERS.get(self.lang, ())
+        if not markers:
+            raise GrammarToolError(f"No infinitive marker configured for {self.lang}")
+        return markers[0]
+
+    def verb_infinitive(self, text: str) -> str:
+        # A note's word isn't guaranteed to already be in infinitive form (e.g. it could be a
+        # conjugated form), so resolving it to the infinitive needs a tool-specific lookup.
+        raise NotImplementedError
+
     def pos(self, text: str) -> str:
         raise NotImplementedError
 

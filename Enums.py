@@ -54,3 +54,4 @@ class GrammarRule(AliasedStrEnum):
     NOUN_ARTICLE = "noun_article", "na"
     NOUN_PLURAL = "noun_plural", "np"
     VERB_TENSES = "verb_tenses", "vt"
+    VERB_INFINITIVE = "verb_infinitive", "vi"

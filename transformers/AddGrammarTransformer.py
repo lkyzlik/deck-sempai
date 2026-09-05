@@ -16,6 +16,7 @@ class AddGrammarTransformer(Transformer):
         GrammarRule.NOUN_ARTICLE: "noun",
         GrammarRule.NOUN_PLURAL: "noun",
         GrammarRule.VERB_TENSES: "verb",
+        GrammarRule.VERB_INFINITIVE: "verb",
     }
 
     # Template for the transformed note text. A [PLACEHOLDER] left unfilled (because that
@@ -66,9 +67,9 @@ class AddGrammarTransformer(Transformer):
             GrammarRule.NOUN_ARTICLE: ("ARTICLE", self.tool.noun_article),
             GrammarRule.NOUN_PLURAL: ("PLURAL", self._get_noun_plural),
             GrammarRule.VERB_TENSES: ("TENSES", self._get_verb_tenses),
+            GrammarRule.VERB_INFINITIVE: ("WORD", self.tool.verb_infinitive),
         }
-        extracted = self.tool.extract_word(field.text)
-        values = {"WORD": " ".join(filter(None, [extracted["markers"], extracted["word"]]))}
+        values = {"WORD": self.tool.extract_word(field.text)["word"]}
         for grammar_rule in applicable_rules:
             placeholder, get_value = handlers[grammar_rule]
             try:

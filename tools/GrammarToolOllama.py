@@ -67,3 +67,9 @@ class GrammarToolOllama(GrammarTool):
     def verb_tense(self, text: str, tense: str) -> str:
         word = self._word_with(text, keep_markers=True)
         return self._ask(f"verb.tense.{tense}.{self.lang.short()}", word, f"determine the {tense} tense")
+
+
+    def verb_infinitive(self, text: str) -> str:
+        word = self._word_with(text, keep_markers=True)
+        infinitive = self._ask(f"verb.infinitive.{self.lang.short()}", word, "determine the infinitive form")
+        return f"{self.verb_infinitive_marker(text)} {infinitive}"

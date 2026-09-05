@@ -19,6 +19,9 @@ da = "The input is a noun in Danish. Return indefinite plural suffix for the nou
 [noun.plural.definite]
 da = "The input is a noun in Danish. Return definite plural suffix for the noun. Example: for 'bil' return '-erne', for 'hus' return '-ene'. Only return the suffix without any additional formatting or explanation. If the definite plural form changes the word (e.g. 'mand' -> 'mændene'), return the definite plural form instead of the suffix. If the plural form is the same as the singular form (e.g. 'fisk' -> 'fisk'), return '-'. Return 'none' if you're unsure."
 
+[verb.infinitive]
+da = "The input is a verb in Danish, possibly in a conjugated form. Return the infinitive (navneform) of the verb, without the infinitive marker 'at'. Example: for 'spiser' return 'spise', for 'gik' return 'gå'. Only return the infinitive form without any additional formatting or explanation. Return 'none' if you're unsure."
+
 [verb.tense.past]
 da = "The input is a verb in Danish. Return the past tense (datid) form of the verb. Example: for 'gå' return 'gik', for 'spise' return 'spiste'. Only return the past tense form without any additional formatting or explanation. Return 'none' if you're unsure."
 

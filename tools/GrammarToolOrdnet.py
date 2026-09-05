@@ -36,30 +36,12 @@ class GrammarToolOrdnet(GrammarTool):
         return word + form[1:] if form.startswith("-") else form
 
 
-    def _find_entry(self, word: str) -> Tag:
-        html = self.scraper.get_html(word)
-        soup = BeautifulSoup(html, "html.parser")
-        headwords = soup.find_all("h1", class_="modern-match")
-
-        # A word already in its dictionary form matches a headword exactly (this also picks the
-        # right sense when a page lists several homonyms of the same spelling). A verb searched
-        # in a conjugated form won't match any headword directly, but ordnet.dk still resolves
-        # the search to that verb's own page, so fall back to whichever entry it found.
-        for headword in headwords:
-            # The headword text is followed by a superscript homonym number (e.g. "arbejde <sup>1</sup>"),
-            # so only look at the leading text node when matching.
-            base = (headword.find(string=True, recursive=False) or "").strip()
-            if base.lower() == word.lower():
-                entry = headword.find_parent("div", class_="artikel")
-                if entry:
-                    return entry
-
-        for headword in headwords:
-            entry = headword.find_parent("div", class_="artikel")
-            if entry:
-                return entry
-
-        raise OrdnetIntegrationError(f"Can't find a dictionary entry for {word!r}")
+    def _get_entry(self, text: str) -> Tag:
+        # OrdnetIntegration.get_html() already resolves the text to the right dictionary
+        # entry (picking the correct homonym when the text implies a part of speech), so
+        # the returned HTML is just that one entry.
+        html = self.scraper.get_html(text)
+        return BeautifulSoup(html, "html.parser")
 
 
     def _get_headword(self, entry: Tag) -> str | None:
@@ -118,7 +100,7 @@ class GrammarToolOrdnet(GrammarTool):
     def pos(self, text: str) -> str:
         word = self.extract_word(text)["word"]
         try:
-            entry = self._find_entry(word)
+            entry = self._get_entry(text)
             pos_key = self._get_pos_key(entry)
         except OrdnetIntegrationError as e:
             raise GrammarToolError(str(e)) from e
@@ -132,7 +114,7 @@ class GrammarToolOrdnet(GrammarTool):
     def noun_article(self, text: str) -> str:
         word = self.extract_word(text)["word"]
         try:
-            entry = self._find_entry(word)
+            entry = self._get_entry(text)
             gender = self._get_gender(entry)
         except OrdnetIntegrationError as e:
             raise GrammarToolError(str(e)) from e
@@ -147,7 +129,7 @@ class GrammarToolOrdnet(GrammarTool):
     def noun_plural_suffix(self, text: str, definite: bool = False) -> str:
         word = self.extract_word(text)["word"]
         try:
-            entry = self._find_entry(word)
+            entry = self._get_entry(text)
             forms = self._get_inflections(entry, word)
         except OrdnetIntegrationError as e:
             raise GrammarToolError(str(e)) from e
@@ -161,7 +143,7 @@ class GrammarToolOrdnet(GrammarTool):
     def verb_infinitive(self, text: str) -> str:
         word = self.extract_word(text)["word"]
         try:
-            entry = self._find_entry(word)
+            entry = self._get_entry(text)
             infinitive = self._get_headword(entry)
         except OrdnetIntegrationError as e:
             raise GrammarToolError(str(e)) from e
@@ -174,7 +156,7 @@ class GrammarToolOrdnet(GrammarTool):
     def verb_tense(self, text: str, tense: str) -> str:
         word = self.extract_word(text)["word"]
         try:
-            entry = self._find_entry(word)
+            entry = self._get_entry(text)
             # Inflection suffixes are relative to the dictionary (infinitive) form, which can
             # differ from the word actually searched for (e.g. a conjugated form).
             infinitive = self._get_headword(entry) or word

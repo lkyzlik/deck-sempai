@@ -1,7 +1,9 @@
 from pathlib import Path
 
+from bs4 import BeautifulSoup, Tag
+
 from Enums import Language
-from interfaces.OrdnetScraper import OrdnetScraper, OrdnetScraperError
+from interfaces.OrdnetIntegration import OrdnetIntegration, OrdnetIntegrationError
 from tools.GrammarTool import GrammarTool, GrammarToolError
 
 
@@ -24,7 +26,7 @@ class GrammarToolOrdnet(GrammarTool):
         super().__init__(lang)
         if lang != Language.DANISH:
             raise GrammarToolError(f"'ordnet.dk' grammar tool only supports Danish, not {lang}")
-        self.scraper = OrdnetScraper(media_dir)
+        self.scraper = OrdnetIntegration()
 
 
     @staticmethod
@@ -34,11 +36,59 @@ class GrammarToolOrdnet(GrammarTool):
         return word + form[1:] if form.startswith("-") else form
 
 
-    def _auxiliary_verb(self, text: str) -> str:
-        word = self.extract_word(text)
+    def _find_entry(self, word: str) -> Tag:
+        html = self.scraper.get_html(word)
+        soup = BeautifulSoup(html, "html.parser")
+        for headword in soup.find_all("h1", class_="modern-match"):
+            # The headword text is followed by a superscript homonym number (e.g. "arbejde <sup>1</sup>"),
+            # so only look at the leading text node when matching.
+            base = (headword.find(string=True, recursive=False) or "").strip()
+            if base.lower() == word.lower():
+                entry = headword.find_parent("div", class_="artikel")
+                if entry:
+                    return entry
+
+        raise OrdnetIntegrationError(f"Can't find a dictionary entry for {word!r}")
+
+
+    def _get_pos_key(self, word: str) -> str | None:
+        pos_span = self._find_entry(word).find(class_="part-of-speech")
+        return pos_span.get("data-pos-key") if pos_span else None
+
+
+    def _get_gender(self, word: str) -> str | None:
+        pos_span = self._find_entry(word).find(class_="part-of-speech")
+        if not pos_span:
+            return None
+        gender_text = pos_span.parent.get_text(" ", strip=True)
+        if "fælleskøn" in gender_text:
+            return "fælleskøn"
+        if "intetkøn" in gender_text:
+            return "intetkøn"
+        return None
+
+
+    def _get_inflections(self, word: str) -> list[str]:
+        row = self._find_entry(word).find("div", id="id-boj")
+        button = row.find("button", class_="kilde") if row else None
+        if not button:
+            raise OrdnetIntegrationError(f"Can't find inflection info for {word!r}")
+        return [form.strip() for form in button.get_text(strip=True).split(",")]
+
+
+    def _get_auxiliary_verb(self, word: str) -> str:
+        # Verbs are annotated per valency pattern (one per sense) with which auxiliary
+        # verb(s) ("have" and/or "være") form the perfect tense with that pattern. Verbs
+        # that always take "have" aren't annotated at all.
         try:
-            auxiliaries = self.scraper.get_auxiliary_verbs(word)
-        except OrdnetScraperError as e:
+            auxiliaries = set()
+            for label in self._find_entry(word).find_all("span", class_="stempelSmallNoBorder", string="HJÆLPEVERBUM"):
+                text = label.parent.get_text(" ", strip=True).split("HJÆLPEVERBUM")[-1]
+                if "have" in text:
+                    auxiliaries.add("have")
+                if "være" in text:
+                    auxiliaries.add("være")
+        except OrdnetIntegrationError as e:
             raise GrammarToolError(str(e)) from e
 
         # Verbs left unannotated always take "have"; verbs whose senses disagree
@@ -53,8 +103,8 @@ class GrammarToolOrdnet(GrammarTool):
     def pos(self, text: str) -> str:
         word = self.extract_word(text)
         try:
-            pos_key = self.scraper.get_pos_key(word)
-        except OrdnetScraperError as e:
+            pos_key = self._get_pos_key(word)
+        except OrdnetIntegrationError as e:
             raise GrammarToolError(str(e)) from e
 
         pos = self.POS_MAP.get(pos_key)
@@ -66,8 +116,8 @@ class GrammarToolOrdnet(GrammarTool):
     def noun_article(self, text: str) -> str:
         word = self.extract_word(text)
         try:
-            gender = self.scraper.get_gender(word)
-        except OrdnetScraperError as e:
+            gender = self._get_gender(word)
+        except OrdnetIntegrationError as e:
             raise GrammarToolError(str(e)) from e
 
         if gender == "fælleskøn":
@@ -80,8 +130,8 @@ class GrammarToolOrdnet(GrammarTool):
     def noun_plural_suffix(self, text: str, definite: bool = False) -> str:
         word = self.extract_word(text)
         try:
-            forms = self.scraper.get_inflections(word)
-        except OrdnetScraperError as e:
+            forms = self._get_inflections(word)
+        except OrdnetIntegrationError as e:
             raise GrammarToolError(str(e)) from e
 
         if len(forms) < 3:
@@ -93,8 +143,8 @@ class GrammarToolOrdnet(GrammarTool):
     def verb_tense(self, text: str, tense: str) -> str:
         word = self.extract_word(text)
         try:
-            forms = self.scraper.get_inflections(word)
-        except OrdnetScraperError as e:
+            forms = self._get_inflections(word)
+        except OrdnetIntegrationError as e:
             raise GrammarToolError(str(e)) from e
 
         if len(forms) < 3:
@@ -103,5 +153,5 @@ class GrammarToolOrdnet(GrammarTool):
         if tense == "past":
             return self._apply_form(word, forms[1])
         if tense == "present_perfect":
-            return f"{self._auxiliary_verb(word)} {self._apply_form(word, forms[2])}"
+            return f"{self._get_auxiliary_verb(word)} {self._apply_form(word, forms[2])}"
         raise GrammarToolError(f"Unsupported tense {tense!r}")

@@ -1,20 +1,68 @@
 import re
 import time
 
+import httpx
+from bs4 import BeautifulSoup
+
 from pathlib import Path
 
 from Deck import Deck, Field
 from Enums import Side
 from DeckOperator import NoteOpResult, DeckOpResult, DeckOpError
 from interfaces.Logger import Logger
-from interfaces.OrdnetScraper import OrdnetScraper, OrdnetScraperError
+from interfaces.OrdnetIntegration import OrdnetIntegration, OrdnetIntegrationError
 from transformers.Transformer import Transformer
 
 
 class AddSoundOrdnetTransformer(Transformer):
     def __init__(self, logger: Logger, media_dir: Path):
         super().__init__(logger)
-        self.scraper = OrdnetScraper(media_dir)
+        self.ordnet = OrdnetIntegration()
+        self.media_dir = media_dir
+
+
+    def _extract_sound_url(self, html: str) -> str:
+        soup = BeautifulSoup(html, "html.parser")
+
+        lydskrift = soup.find("span", class_="lydskrift")
+        if not lydskrift:
+            raise OrdnetIntegrationError("Can't find sound URL")
+
+        audio = lydskrift.find("audio")
+        if not audio:
+            raise OrdnetIntegrationError("Can't find sound URL")
+
+        hidden_structure = audio.find("div", class_="hiddenStructure")
+        if not hidden_structure:
+            raise OrdnetIntegrationError("Can't find sound URL")
+
+        a = hidden_structure.find("a")
+        if a and a.get("href", "") and a["href"].endswith(".mp3"):
+            return a["href"]
+        else:
+            raise OrdnetIntegrationError("Can't find sound URL")
+
+
+    def _download_file(self, url: str, output_path: Path) -> None:
+        try:
+            resp = self.ordnet.client.get(url, timeout=15)
+            resp.raise_for_status()
+        except httpx.HTTPError as e:
+            raise OrdnetIntegrationError(f"Can't download file")
+
+        if not output_path.parent.exists():
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(output_path, "wb") as f:
+            f.write(resp.content)
+
+
+    def _download_sound(self, word: str, filename: str) -> Path:
+        html = self.ordnet.get_html(word)
+        sound_url = self._extract_sound_url(html)
+        output_path = self.media_dir / filename
+        self._download_file(sound_url, output_path)
+        return output_path
 
 
     def _extract_word(self, text: str) -> str | None:
@@ -46,9 +94,9 @@ class AddSoundOrdnetTransformer(Transformer):
             return NoteOpResult(success=False)
 
         try:
-            sound_path = self.scraper.download_sound(word, f"ordnet_{deck_name}_{word}.mp3")
+            sound_path = self._download_sound(word, f"ordnet_{deck_name}_{word}.mp3")
             field.add_sound(sound_path.name)
-        except OrdnetScraperError as e:
+        except OrdnetIntegrationError as e:
             self._warning(f"Can't download sound for {word!r}")
             if not is_last:
                 time.sleep(0.5) # Be polite to the server even on errors

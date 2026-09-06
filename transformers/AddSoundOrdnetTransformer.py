@@ -10,7 +10,7 @@ from Deck import Deck, Field
 from Enums import Side
 from DeckOperator import NoteOpResult, DeckOpResult, DeckOpError
 from interfaces.Logger import Logger
-from interfaces.OrdnetIntegration import OrdnetIntegration, OrdnetIntegrationError
+from interfaces.OrdnetIntegration import OrdnetIntegration, OrdnetIntegrationError, OrdnetIntegrationDisabledError
 from transformers.Transformer import Transformer
 
 
@@ -96,6 +96,8 @@ class AddSoundOrdnetTransformer(Transformer):
         try:
             sound_path = self._download_sound(word, f"ordnet_{deck_name}_{word}.mp3")
             field.add_sound(sound_path.name)
+        except OrdnetIntegrationDisabledError as e:
+            raise DeckOpError(self, str(e)) from e
         except OrdnetIntegrationError as e:
             self._warning(f"Can't download sound for {word!r}")
             if not is_last:

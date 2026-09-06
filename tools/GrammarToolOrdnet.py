@@ -3,8 +3,8 @@ from pathlib import Path
 from bs4 import BeautifulSoup, Tag
 
 from Enums import Language
-from interfaces.OrdnetIntegration import OrdnetIntegration, OrdnetIntegrationError
-from tools.GrammarTool import GrammarTool, GrammarToolError
+from interfaces.OrdnetIntegration import OrdnetIntegration, OrdnetIntegrationError, OrdnetIntegrationDisabledError
+from tools.GrammarTool import GrammarTool, GrammarToolError, GrammarToolDisabledError
 
 
 class GrammarToolOrdnet(GrammarTool):
@@ -102,6 +102,8 @@ class GrammarToolOrdnet(GrammarTool):
         try:
             entry = self._get_entry(text)
             pos_key = self._get_pos_key(entry)
+        except OrdnetIntegrationDisabledError as e:
+            raise GrammarToolDisabledError(str(e)) from e
         except OrdnetIntegrationError as e:
             raise GrammarToolError(str(e)) from e
 
@@ -116,6 +118,8 @@ class GrammarToolOrdnet(GrammarTool):
         try:
             entry = self._get_entry(text)
             gender = self._get_gender(entry)
+        except OrdnetIntegrationDisabledError as e:
+            raise GrammarToolDisabledError(str(e)) from e
         except OrdnetIntegrationError as e:
             raise GrammarToolError(str(e)) from e
 
@@ -131,6 +135,8 @@ class GrammarToolOrdnet(GrammarTool):
         try:
             entry = self._get_entry(text)
             forms = self._get_inflections(entry, word)
+        except OrdnetIntegrationDisabledError as e:
+            raise GrammarToolDisabledError(str(e)) from e
         except OrdnetIntegrationError as e:
             raise GrammarToolError(str(e)) from e
 
@@ -145,6 +151,8 @@ class GrammarToolOrdnet(GrammarTool):
         try:
             entry = self._get_entry(text)
             infinitive = self._get_headword(entry)
+        except OrdnetIntegrationDisabledError as e:
+            raise GrammarToolDisabledError(str(e)) from e
         except OrdnetIntegrationError as e:
             raise GrammarToolError(str(e)) from e
 
@@ -161,6 +169,8 @@ class GrammarToolOrdnet(GrammarTool):
             # differ from the word actually searched for (e.g. a conjugated form).
             infinitive = self._get_headword(entry) or word
             forms = self._get_inflections(entry, word)
+        except OrdnetIntegrationDisabledError as e:
+            raise GrammarToolDisabledError(str(e)) from e
         except OrdnetIntegrationError as e:
             raise GrammarToolError(str(e)) from e
 

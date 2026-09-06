@@ -9,6 +9,10 @@ class GrammarToolError(Exception):
     pass
 
 
+class GrammarToolDisabledError(GrammarToolError):
+    pass
+
+
 class GrammarTool:
     # Articles and infinitive markers to strip from the front of a word, per language
     ARTICLES = {

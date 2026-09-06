@@ -5,7 +5,7 @@ from DeckOperator import DeckOpResult, DeckOpError, NoteOpResult
 from Enums import Side, GrammarRule
 
 from interfaces.Logger import Logger
-from tools.GrammarTool import GrammarTool, GrammarToolError
+from tools.GrammarTool import GrammarTool, GrammarToolError, GrammarToolDisabledError
 from transformers.Transformer import Transformer
 
 
@@ -53,6 +53,8 @@ class AddGrammarTransformer(Transformer):
         # Classify the word once, then keep only the requested rules that match its part of speech
         try:
             pos = self.tool.pos(field.text)
+        except GrammarToolDisabledError as e:
+            raise DeckOpError(self, str(e)) from e
         except GrammarToolError as e:
             self._warning(str(e))
             pos = None
@@ -74,6 +76,8 @@ class AddGrammarTransformer(Transformer):
             placeholder, get_value = handlers[grammar_rule]
             try:
                 values[placeholder] = get_value(field.text)
+            except GrammarToolDisabledError as e:
+                raise DeckOpError(self, str(e)) from e
             except GrammarToolError as e:
                 self._warning(str(e))
                 return NoteOpResult(success=False)

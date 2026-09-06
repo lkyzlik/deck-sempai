@@ -15,6 +15,10 @@ class OrdnetIntegration:
         )
     }
 
+    # A common word used to test connectivity: any dictionary entry being reachable confirms
+    # both internet access and that ordnet.dk itself is up.
+    TEST_WORD = "hus"
+
     # ordnet.dk's part-of-speech key for the homonym entry we should prefer, based on what
     # extract_word() found in the text (an infinitive marker implies a verb, an article a noun).
     POS_KEY_FOR_MARKER = "vb."
@@ -25,9 +29,42 @@ class OrdnetIntegration:
         self.client = httpx.Client(headers=self.HEADERS)
         self._html_cache: dict[str, str] = {}
         self._grammar_tool = GrammarTool(Language.DANISH)
+        self._enabled = False
+
+
+    def enable(self, enable: bool):
+        self._enabled = enable
+
+
+    def configure(self, config: dict):
+        pass
+
+
+    def test_connection(self) -> bool:
+        try:
+            self.get_html(self.TEST_WORD)
+            return True
+        except OrdnetIntegrationError:
+            return False
+
+
+    def status(self) -> str:
+        if not self._enabled:
+            return "disabled"
+        return "connected" if self.test_connection() else "not_connected"
+
+
+    def user_help(self) -> str:
+        return (
+            "Can't reach ordnet.dk. Check your internet connection, then try again. "
+            "If the problem persists, ordnet.dk may be down or blocking requests."
+        )
 
 
     def get_html(self, text: str) -> str:
+        if not self._enabled:
+            raise OrdnetIntegrationDisabledError("Integration is disabled")
+
         extracted = self._grammar_tool.extract_word(text)
         word = extracted["word"]
 
@@ -88,3 +125,7 @@ class OrdnetIntegration:
 class OrdnetIntegrationError(Exception):
     def __init__(self, message: str):
         super().__init__(f"'ordnet.dk' integration: {message}")
+
+
+class OrdnetIntegrationDisabledError(OrdnetIntegrationError):
+    pass

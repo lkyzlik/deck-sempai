@@ -1,9 +1,9 @@
 from pathlib import Path
-from ollama import chat, ChatResponse, ResponseError
 
 from Enums import Language
+from interfaces.OllamaIntegration import OllamaIntegration, OllamaIntegrationError, OllamaIntegrationDisabledError
 from interfaces.PromptLoader import PromptLoader, PromptPlaceholders
-from tools.GrammarTool import GrammarTool, GrammarToolError
+from tools.GrammarTool import GrammarTool, GrammarToolError, GrammarToolDisabledError
 
 
 class GrammarToolOllama(GrammarTool):
@@ -11,6 +11,7 @@ class GrammarToolOllama(GrammarTool):
         super().__init__(lang)
         self.model = model
         self.pl = PromptLoader(prompts_path)
+        self.ollama = OllamaIntegration()
 
 
     def _ask(self, prompt_key: str, word: str, failure: str) -> str:
@@ -18,15 +19,15 @@ class GrammarToolOllama(GrammarTool):
         if not prompt:
             raise GrammarToolError(f"No {prompt_key!r} prompt found")
 
+        messages = [
+            {"role": "user", "content": prompt},
+            {"role": "user", "content": word}
+        ]
         try:
-            messages = [
-                {"role": "user", "content": prompt},
-                {"role": "user", "content": word}
-            ]
-            options = {"temperature": 0}  # Deterministic output
-            response: ChatResponse = chat(self.model, messages=messages, think=False, keep_alive='10s', options=options)
-            answer = response.message.content.strip().lower()
-        except ResponseError as e:
+            answer = self.ollama.chat(self.model, messages, temperature=0).lower()  # Deterministic output
+        except OllamaIntegrationDisabledError as e:
+            raise GrammarToolDisabledError(str(e)) from e
+        except OllamaIntegrationError as e:
             raise GrammarToolError(f"AI request failed for {word!r}") from e
 
         if answer == 'none':

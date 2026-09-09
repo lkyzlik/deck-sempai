@@ -3,7 +3,7 @@ from DeckOperator import DeckOpResult, DeckOpError, NoteOpResult
 from Enums import Side
 
 from interfaces.Logger import Logger
-from tools.TranslateTool import TranslateTool, TranslateToolError
+from tools.TranslateTool import TranslateTool, TranslateToolError, TranslateToolDisabledError
 from transformers.Transformer import Transformer
 
 
@@ -20,6 +20,8 @@ class TranslateTransformer(Transformer):
         try:
             field_to.text = self.tool.translate(field_from.text)
             field_to.sounds = [] # Clear sounds since the text has changed
+        except TranslateToolDisabledError as e:
+            raise DeckOpError(self, str(e)) from e
         except TranslateToolError as e:
             self._warning(str(e))
             return NoteOpResult(success=False)

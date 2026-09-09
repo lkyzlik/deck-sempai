@@ -207,12 +207,18 @@ class App:
                 sub_deck = Deck()
                 sub_deck.meta = deck.meta
                 sub_deck.notes = translate_forward
-                self.transformers["translate"].transform_deck(sub_deck, side="front-back")
+                try:
+                    self.transformers["translate"].transform_deck(sub_deck, side="front-back")
+                except DeckOpError as e:
+                    self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
             if translate_backward:
                 sub_deck = Deck()
                 sub_deck.meta = deck.meta
                 sub_deck.notes = translate_backward
-                self.transformers["translate"].transform_deck(sub_deck, side="back-front")
+                try:
+                    self.transformers["translate"].transform_deck(sub_deck, side="back-front")
+                except DeckOpError as e:
+                    self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
 
             grammar_rule = ",".join(g.value for g in GrammarRule)
             for side in ("front", "back"):

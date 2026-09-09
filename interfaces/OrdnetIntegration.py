@@ -29,7 +29,7 @@ class OrdnetIntegration:
         self.client = httpx.Client(headers=self.HEADERS)
         self._html_cache: dict[str, str] = {}
         self._grammar_tool = GrammarTool(Language.DANISH)
-        self._enabled = False
+        self._enabled = True
 
 
     def enable(self, enable: bool):

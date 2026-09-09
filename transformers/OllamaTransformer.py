@@ -1,6 +1,5 @@
-from ollama import chat, ChatResponse, ResponseError
-
 from interfaces.Logger import Logger
+from interfaces.OllamaIntegration import OllamaIntegration, OllamaIntegrationError, OllamaIntegrationDisabledError
 from transformers.Transformer import Transformer
 from Enums import Side
 from Deck import Deck, Note
@@ -12,6 +11,7 @@ class OllamaTransformer(Transformer):
         super().__init__(logger)
         self.default_model = default_model
         self.prog_title = prog_title
+        self.ollama = OllamaIntegration()
 
 
     def _transform_note(self, note: Note, side_from: Side, side_to: Side, prompt: str, think: bool | str,
@@ -19,19 +19,19 @@ class OllamaTransformer(Transformer):
         field_from = note.get_field(side_from)
         field_to = note.get_field(side_to)
 
+        messages = [
+            {"role": "user", "content": prompt},
+            {"role": "user", "content": field_from.text}
+        ]
         try:
-            messages = [
-                {"role": "user", "content": prompt},
-                {"role": "user", "content": field_from.text}
-            ]
-            options = {"temperature": temperature} if temperature is not None else None
-            response: ChatResponse = chat(model, messages=messages, keep_alive='10s', think=think, options=options)
-            field_to.text = response.message.content.strip()
+            field_to.text = self.ollama.chat(model, messages, think=think, temperature=temperature)
             field_to.sounds = [] # Clear sounds since the text has changed
-        except ResponseError as e:
+        except OllamaIntegrationDisabledError as e:
+            raise DeckOpError(self, str(e)) from e
+        except OllamaIntegrationError as e:
             self._warning(f"AI edit failed for {field_from.get_text_oneline()!r}")
             return NoteOpResult(success=False)
-        
+
         return NoteOpResult(success=True)
 
 

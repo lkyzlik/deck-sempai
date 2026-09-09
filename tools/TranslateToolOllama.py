@@ -1,9 +1,9 @@
 from pathlib import Path
-from ollama import chat, ChatResponse, ResponseError
 
 from Enums import Language
+from interfaces.OllamaIntegration import OllamaIntegration, OllamaIntegrationError, OllamaIntegrationDisabledError
 from interfaces.PromptLoader import PromptLoader, PromptPlaceholders
-from tools.TranslateTool import TranslateTool, TranslateToolError
+from tools.TranslateTool import TranslateTool, TranslateToolError, TranslateToolDisabledError
 
 
 class TranslateToolOllama(TranslateTool):
@@ -12,6 +12,7 @@ class TranslateToolOllama(TranslateTool):
         super().__init__(lang_from, lang_to)
         self.model = model
         self.pl = PromptLoader(prompts_path)
+        self.ollama = OllamaIntegration()
 
 
     def translate(self, text: str) -> str:
@@ -19,13 +20,13 @@ class TranslateToolOllama(TranslateTool):
         if not prompt:
             raise TranslateToolError("No 'translate' prompt found")
 
+        messages = [
+            {"role": "user", "content": prompt},
+            {"role": "user", "content": text}
+        ]
         try:
-            messages = [
-                {"role": "user", "content": prompt},
-                {"role": "user", "content": text}
-            ]
-            options = {"temperature": 0}  # Deterministic output
-            response: ChatResponse = chat(self.model, messages=messages, think=False, keep_alive='10s', options=options)
-            return response.message.content.strip()
-        except ResponseError as e:
+            return self.ollama.chat(self.model, messages, temperature=0)  # Deterministic output
+        except OllamaIntegrationDisabledError as e:
+            raise TranslateToolDisabledError(str(e)) from e
+        except OllamaIntegrationError as e:
             raise TranslateToolError(f"AI request failed for {text!r}") from e

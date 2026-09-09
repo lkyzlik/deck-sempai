@@ -1,17 +1,18 @@
 from pathlib import Path
 
 from Enums import Language
-from interfaces.OllamaIntegration import OllamaIntegration, OllamaIntegrationError, OllamaIntegrationDisabledError
+from integrations.OllamaIntegration import OllamaIntegration, OllamaIntegrationError, OllamaIntegrationDisabledError
 from interfaces.PromptLoader import PromptLoader, PromptPlaceholders
 from tools.GrammarTool import GrammarTool, GrammarToolError, GrammarToolDisabledError
 
 
 class GrammarToolOllama(GrammarTool):
-    def __init__(self, lang: Language, model: str = "gemma4", prompts_path: Path = "prompts.toml"):
+    def __init__(self, lang: Language, ollama: OllamaIntegration, model: str = "gemma4",
+                prompts_path: Path = "prompts.toml"):
         super().__init__(lang)
+        self.ollama = ollama
         self.model = model
         self.pl = PromptLoader(prompts_path)
-        self.ollama = OllamaIntegration()
 
 
     def _ask(self, prompt_key: str, word: str, failure: str) -> str:

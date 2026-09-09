@@ -10,14 +10,14 @@ from Deck import Deck, Field
 from Enums import Side
 from DeckOperator import NoteOpResult, DeckOpResult, DeckOpError
 from interfaces.Logger import Logger
-from interfaces.OrdnetIntegration import OrdnetIntegration, OrdnetIntegrationError, OrdnetIntegrationDisabledError
+from integrations.OrdnetIntegration import OrdnetIntegration, OrdnetIntegrationError, OrdnetIntegrationDisabledError
 from transformers.Transformer import Transformer
 
 
 class AddSoundOrdnetTransformer(Transformer):
-    def __init__(self, logger: Logger, media_dir: Path):
+    def __init__(self, logger: Logger, ordnet: OrdnetIntegration, media_dir: Path):
         super().__init__(logger)
-        self.ordnet = OrdnetIntegration()
+        self.ordnet = ordnet
         self.media_dir = media_dir
 
 

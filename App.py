@@ -17,7 +17,10 @@ from importers.Importer import Importer
 from importers.AnkiImporter import AnkiImporter
 from importers.LineImporter import LineImporter
 
-from interfaces.AnkiIntegration import AnkiIntegration
+from integrations.AnkiIntegration import AnkiIntegration
+from integrations.Integration import Integration
+from integrations.OllamaIntegration import OllamaIntegration
+from integrations.OrdnetIntegration import OrdnetIntegration
 from interfaces.RichConsoleFrontend import RichConsoleFrontend
 
 from transformers.Transformer import Transformer
@@ -48,22 +51,26 @@ class App:
 
         # Interfaces
         self.frontend = RichConsoleFrontend()
-        anki_integ = AnkiIntegration()
+        self.integrations : dict[str, Integration] = {
+            "anki": AnkiIntegration(),
+            "ollama": OllamaIntegration(),
+            "ordnet": OrdnetIntegration(),
+        }
 
         self.exporters : dict[str, Exporter] = {
-            "anki": AnkiExporter(self.frontend, anki_integ, self.media_dir),
+            "anki": AnkiExporter(self.frontend, self.integrations["anki"], self.media_dir),
         }
         self.importers : dict[str, Importer] = {
-            "anki": AnkiImporter(self.frontend, anki_integ),
+            "anki": AnkiImporter(self.frontend, self.integrations["anki"]),
             "line": LineImporter(self.frontend),
         }
         self.transformers : dict[str, Transformer] = {
-            "add-sound-ordnet": AddSoundOrdnetTransformer(self.frontend, self.media_dir),
+            "add-sound-ordnet": AddSoundOrdnetTransformer(self.frontend, self.integrations["ordnet"], self.media_dir),
             "remove-sound": RemoveSoundTransformer(self.frontend),
-            "ollama": OllamaTransformer(self.frontend),
-            "translate-ollama": TranslateOllamaTransformer(self.frontend),
-            "add-grammar-ollama": AddGrammarOllamaTransformer(self.frontend),
-            "add-grammar-ordnet": AddGrammarOrdnetTransformer(self.frontend, self.media_dir),
+            "ollama": OllamaTransformer(self.frontend, self.integrations["ollama"]),
+            "translate-ollama": TranslateOllamaTransformer(self.frontend, self.integrations["ollama"]),
+            "add-grammar-ollama": AddGrammarOllamaTransformer(self.frontend, self.integrations["ollama"]),
+            "add-grammar-ordnet": AddGrammarOrdnetTransformer(self.frontend, self.integrations["ordnet"], self.media_dir),
         }
 
         # Add managers (this must be done after all individual deck operators are created)

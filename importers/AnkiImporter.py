@@ -1,4 +1,4 @@
-from interfaces.AnkiIntegration import AnkiIntegration, AnkiIntegrationError, AnkiIntegrationDisabledError
+from integrations.AnkiIntegration import AnkiIntegration, AnkiIntegrationError, AnkiIntegrationDisabledError
 from Deck import Deck, DeckMeta, Field, Note
 from DeckOperator import DeckOpError
 from importers.Importer import Importer

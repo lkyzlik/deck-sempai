@@ -3,7 +3,7 @@ from pathlib import Path
 from bs4 import BeautifulSoup, Tag
 
 from Enums import Language
-from interfaces.OrdnetIntegration import OrdnetIntegration, OrdnetIntegrationError, OrdnetIntegrationDisabledError
+from integrations.OrdnetIntegration import OrdnetIntegration, OrdnetIntegrationError, OrdnetIntegrationDisabledError
 from tools.GrammarTool import GrammarTool, GrammarToolError, GrammarToolDisabledError
 
 
@@ -22,11 +22,11 @@ class GrammarToolOrdnet(GrammarTool):
     }
 
 
-    def __init__(self, lang: Language, media_dir: Path):
+    def __init__(self, lang: Language, ordnet: OrdnetIntegration, media_dir: Path):
         super().__init__(lang)
         if lang != Language.DANISH:
             raise GrammarToolError(f"'ordnet.dk' grammar tool only supports Danish, not {lang}")
-        self.scraper = OrdnetIntegration()
+        self.scraper = ordnet
 
 
     @staticmethod

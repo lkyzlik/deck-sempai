@@ -5,7 +5,7 @@ from DeckOperator import DeckOpError, NoteOpResult, DeckOpResult
 
 from interfaces.Logger import Logger
 from exporters.Exporter import Exporter
-from interfaces.AnkiIntegration import AnkiIntegration, AnkiIntegrationError, AnkiIntegrationDisabledError
+from integrations.AnkiIntegration import AnkiIntegration, AnkiIntegrationError, AnkiIntegrationDisabledError
 
 
 class AnkiExporter(Exporter):

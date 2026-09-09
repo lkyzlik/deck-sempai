@@ -1,5 +1,5 @@
 from interfaces.Logger import Logger
-from interfaces.OllamaIntegration import OllamaIntegration, OllamaIntegrationError, OllamaIntegrationDisabledError
+from integrations.OllamaIntegration import OllamaIntegration, OllamaIntegrationError, OllamaIntegrationDisabledError
 from transformers.Transformer import Transformer
 from Enums import Side
 from Deck import Deck, Note
@@ -7,11 +7,12 @@ from DeckOperator import NoteOpResult, DeckOpResult, DeckOpError
 
 
 class OllamaTransformer(Transformer):
-    def __init__(self, logger: Logger, default_model: str = "gemma4", prog_title: str = "Processing..."):
+    def __init__(self, logger: Logger, ollama: OllamaIntegration, default_model: str = "gemma4",
+                prog_title: str = "Processing..."):
         super().__init__(logger)
+        self.ollama = ollama
         self.default_model = default_model
         self.prog_title = prog_title
-        self.ollama = OllamaIntegration()
 
 
     def _transform_note(self, note: Note, side_from: Side, side_to: Side, prompt: str, think: bool | str,

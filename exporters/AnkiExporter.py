@@ -5,11 +5,11 @@ from DeckOperator import DeckOpError, NoteOpResult, DeckOpResult
 
 from interfaces.Logger import Logger
 from exporters.Exporter import Exporter
-from interfaces.AnkiConnect import AnkiConnect, AnkiConnectError
+from interfaces.AnkiIntegration import AnkiIntegration, AnkiIntegrationError, AnkiIntegrationDisabledError
 
 
 class AnkiExporter(Exporter):
-    def __init__(self,  logger: Logger, ac: AnkiConnect, media_dir: Path):
+    def __init__(self,  logger: Logger, ac: AnkiIntegration, media_dir: Path):
         super().__init__(logger)
         self.ac = ac
         self.media_dir = media_dir
@@ -42,7 +42,7 @@ class AnkiExporter(Exporter):
         for sound in sounds:
             try:
                 self.ac.delete_media_file(sound)
-            except AnkiConnectError as e:
+            except AnkiIntegrationError as e:
                 self._warning(f"Can't cleanup sound {sound!r}")
 
 
@@ -57,7 +57,9 @@ class AnkiExporter(Exporter):
                     self.ac.store_media_file(sound, sound_file)
                     sound_file.unlink(missing_ok=True)  # Remove the temporary file
                     added_sounds.append(sound)
-                except AnkiConnectError as e:
+                except AnkiIntegrationDisabledError as e:
+                    raise DeckOpError(self, str(e)) from e
+                except AnkiIntegrationError as e:
                     self._warning(f"Can't add sound {sound!r}")
                     self._cleanup_sounds(added_sounds)
                     return NoteOpResult(False)
@@ -71,7 +73,9 @@ class AnkiExporter(Exporter):
                 self.ac.update_note(self._update_note_to_anki(note))
             else:
                 self.ac.add_note(self._add_note_to_anki(note, deck_name))
-        except AnkiConnectError as e:
+        except AnkiIntegrationDisabledError as e:
+            raise DeckOpError(self, str(e)) from e
+        except AnkiIntegrationError as e:
             self._warning(f"Can't add note {(note.front.get_text_oneline())!r}")
             self._cleanup_sounds(added_sounds)
             return NoteOpResult(False)
@@ -83,7 +87,9 @@ class AnkiExporter(Exporter):
         try:
             self.ac.save_deck_meta(deck.name, deck.meta.to_dict())
             existing_note_ids = self.ac.find_notes(f'deck:{deck.name}')
-        except AnkiConnectError as e:
+        except AnkiIntegrationDisabledError as e:
+            raise DeckOpError(self, str(e)) from e
+        except AnkiIntegrationError as e:
             raise DeckOpError(self, e)
 
         results = []

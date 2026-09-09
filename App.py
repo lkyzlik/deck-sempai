@@ -17,7 +17,7 @@ from importers.Importer import Importer
 from importers.AnkiImporter import AnkiImporter
 from importers.LineImporter import LineImporter
 
-from interfaces.AnkiConnect import AnkiConnect
+from interfaces.AnkiIntegration import AnkiIntegration
 from interfaces.RichConsoleFrontend import RichConsoleFrontend
 
 from transformers.Transformer import Transformer
@@ -48,13 +48,13 @@ class App:
 
         # Interfaces
         self.frontend = RichConsoleFrontend()
-        ac = AnkiConnect()
+        anki_integ = AnkiIntegration()
 
         self.exporters : dict[str, Exporter] = {
-            "anki": AnkiExporter(self.frontend, ac, self.media_dir),
+            "anki": AnkiExporter(self.frontend, anki_integ, self.media_dir),
         }
         self.importers : dict[str, Importer] = {
-            "anki": AnkiImporter(self.frontend, ac),
+            "anki": AnkiImporter(self.frontend, anki_integ),
             "line": LineImporter(self.frontend),
         }
         self.transformers : dict[str, Transformer] = {

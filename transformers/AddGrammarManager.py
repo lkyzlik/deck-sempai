@@ -2,7 +2,7 @@ from Deck import Deck
 from DeckOperator import DeckOpError, DeckOpResult
 from Enums import Side, Language
 from transformers.Transformer import Transformer
-from interfaces.Logger import Logger
+from ui.Logger import Logger
 
 
 class AddGrammarManager(Transformer):

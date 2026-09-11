@@ -2,7 +2,7 @@ from pathlib import Path
 
 from Enums import Language
 from integrations.OllamaIntegration import OllamaIntegration, OllamaIntegrationError, OllamaIntegrationDisabledError
-from interfaces.PromptLoader import PromptLoader, PromptPlaceholders
+from PromptLoader import PromptLoader, PromptPlaceholders
 from tools.GrammarTool import GrammarTool, GrammarToolError, GrammarToolDisabledError
 
 

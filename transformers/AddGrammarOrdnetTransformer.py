@@ -4,7 +4,7 @@ from Deck import Deck
 from DeckOperator import DeckOpResult, DeckOpError
 from Enums import Language, Side
 
-from interfaces.Logger import Logger
+from ui.Logger import Logger
 from integrations.OrdnetIntegration import OrdnetIntegration
 from tools.GrammarToolOrdnet import GrammarToolOrdnet
 from transformers.AddGrammarTransformer import AddGrammarTransformer

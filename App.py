@@ -21,7 +21,7 @@ from integrations.AnkiIntegration import AnkiIntegration
 from integrations.Integration import Integration
 from integrations.OllamaIntegration import OllamaIntegration
 from integrations.OrdnetIntegration import OrdnetIntegration
-from interfaces.RichConsoleFrontend import RichConsoleFrontend
+from ui.RichConsoleFrontend import RichConsoleFrontend
 
 from transformers.Transformer import Transformer
 from transformers.AddSoundManager import AddSoundManager

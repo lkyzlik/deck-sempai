@@ -3,7 +3,7 @@ from Deck import Deck, DeckMeta, Field, Note
 from DeckOperator import DeckOpError
 from importers.Importer import Importer
 
-from interfaces.Logger import Logger
+from ui.Logger import Logger
 
 
 class AnkiImporter(Importer):

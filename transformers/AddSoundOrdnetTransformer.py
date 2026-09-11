@@ -9,7 +9,7 @@ from pathlib import Path
 from Deck import Deck, Field
 from Enums import Side
 from DeckOperator import NoteOpResult, DeckOpResult, DeckOpError
-from interfaces.Logger import Logger
+from ui.Logger import Logger
 from integrations.OrdnetIntegration import OrdnetIntegration, OrdnetIntegrationError, OrdnetIntegrationDisabledError
 from transformers.Transformer import Transformer
 

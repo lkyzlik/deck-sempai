@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from interfaces.Logger import Logger
+from ui.Logger import Logger
 
 
 class DeckOperator:

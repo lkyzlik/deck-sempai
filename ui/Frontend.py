@@ -3,7 +3,7 @@ from typing import Protocol
 from Deck import Deck, DeckMeta
 from DeckOperator import DeckOpResult
 
-from interfaces.Logger import Logger
+from ui.Logger import Logger
 
 
 class Frontend(Logger, Protocol):

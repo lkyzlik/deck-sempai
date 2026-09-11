@@ -1,4 +1,4 @@
-from interfaces.Logger import Logger
+from ui.Logger import Logger
 from integrations.OllamaIntegration import OllamaIntegration, OllamaIntegrationError, OllamaIntegrationDisabledError
 from transformers.Transformer import Transformer
 from Enums import Side

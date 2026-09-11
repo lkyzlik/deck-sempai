@@ -7,7 +7,7 @@ from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 from Deck import Deck, DeckMeta, Field
 from DeckOperator import DeckOpResult, DeckOpError
 
-from interfaces.Logger import LoggerProgress
+from ui.Logger import LoggerProgress
 
 
 class RichConsoleFrontend:

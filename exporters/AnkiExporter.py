@@ -3,7 +3,7 @@ from pathlib import Path
 from Deck import Deck, Note
 from DeckOperator import DeckOpError, NoteOpResult, DeckOpResult
 
-from interfaces.Logger import Logger
+from ui.Logger import Logger
 from exporters.Exporter import Exporter
 from integrations.AnkiIntegration import AnkiIntegration, AnkiIntegrationError, AnkiIntegrationDisabledError
 

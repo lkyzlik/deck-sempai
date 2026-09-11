@@ -2,7 +2,7 @@
 from Deck import Deck
 from DeckOperator import DeckOpError, DeckOpResult
 from Enums import Language, Side
-from interfaces.Logger import Logger
+from ui.Logger import Logger
 from transformers.Transformer import Transformer
 
 

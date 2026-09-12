@@ -8,6 +8,7 @@ from pathlib import Path
 @dataclass
 class AppConfig:
     deck_storage: str = "anki"
+    frontend: str = "rich"
 
 
 @dataclass

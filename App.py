@@ -21,6 +21,7 @@ from integrations.AnkiIntegration import AnkiIntegration
 from integrations.Integration import Integration
 from integrations.OllamaIntegration import OllamaIntegration
 from integrations.OrdnetIntegration import OrdnetIntegration
+from ui.Frontend import Frontend
 from ui.RichConsoleFrontend import RichConsoleFrontend
 
 from transformers.Transformer import Transformer
@@ -50,8 +51,13 @@ class App:
         self.state_file = data_dir / "state.json"
         self.media_dir = data_dir / "media"
 
-        # Interfaces
-        self.frontend = RichConsoleFrontend()
+        frontends: dict[str, type[Frontend]] = {
+            "rich": RichConsoleFrontend,
+        }
+        frontend_cls = frontends.get(self.config.app.frontend)
+        if not frontend_cls:
+            raise ValueError(f"Frontend '{self.config.app.frontend}' not found. Available frontends: {', '.join(frontends)}")
+        self.frontend = frontend_cls()
 
         # Integrations
         self.integrations : dict[str, Integration] = {}

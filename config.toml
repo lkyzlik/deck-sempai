@@ -1,5 +1,6 @@
 [app]
 deck_storage = "anki"
+frontend = "rich"
 
 [commands.grammar]
 da = "add-grammar-ordnet"

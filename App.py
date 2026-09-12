@@ -80,9 +80,9 @@ class App:
         }
 
         # Add managers (this must be done after all individual deck operators are created)
-        self.transformers["add-sound"] = AddSoundManager(self.frontend, self.transformers, self.config.commands.get("sound", {}))
-        self.transformers["add-grammar"] = AddGrammarManager(self.frontend, self.transformers, self.config.commands.get("grammar", {}))
-        self.transformers["translate"] = TranslateManager(self.frontend, self.transformers, self.config.commands.get("translate", {}))
+        self.transformers["add-sound"] = AddSoundManager(self.frontend, self.transformers, self.config.commands.sound)
+        self.transformers["add-grammar"] = AddGrammarManager(self.frontend, self.transformers, self.config.commands.grammar)
+        self.transformers["translate"] = TranslateManager(self.frontend, self.transformers, self.config.commands.translate)
 
         self._load_state()
 
@@ -184,6 +184,12 @@ class App:
         return front or None, back or None, model or None, tags or None
 
 
+    def _parse_apply_entry(self, entry: str) -> tuple[str, dict]:
+        name, *args = entry.split()
+        kwargs = dict(arg.split("=", 1) for arg in args if "=" in arg)
+        return name, kwargs
+
+
     def _add_notes(self, entries: list[tuple[str, str, str, str]]):
         if not entries:
             return
@@ -210,19 +216,15 @@ class App:
             if not note_deck.notes:
                 return
 
-            try:
-                self.transformers["translate"].transform_deck(note_deck)
-            except DeckOpError as e:
-                self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
-
-            try:
-                self.transformers["add-sound"].transform_deck(note_deck)
-            except DeckOpError as e:
-                self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
-            try:
-                self.transformers["add-grammar"].transform_deck(note_deck)
-            except DeckOpError as e:
-                self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
+            for entry in self.config.commands.add.apply:
+                name, kwargs = self._parse_apply_entry(entry)
+                if name not in self.transformers:
+                    self.frontend.warning(f"Transformer '{name}' not found, skipping")
+                    continue
+                try:
+                    self.transformers[name].transform_deck(note_deck, **kwargs)
+                except DeckOpError as e:
+                    self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
 
             if self._preview("Preview:", note_deck):
                 self._save_deck(deck + note_deck)

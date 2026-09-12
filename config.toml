@@ -13,6 +13,13 @@ other = "skip"
 [commands.translate]
 other = "translate-ollama"
 
+[commands.add]
+apply = [
+  "translate",
+  "add-sound",
+  "add-grammar"
+]
+
 [integrations.anki]
 enable = true
 host = "localhost"

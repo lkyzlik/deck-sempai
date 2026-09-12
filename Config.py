@@ -11,10 +11,23 @@ class AppConfig:
 
 
 @dataclass
+class AddCommandConfig:
+    apply: list[str] = field(default_factory=list)
+
+
+@dataclass
+class CommandsConfig:
+    sound: dict[str, str] = field(default_factory=dict)
+    grammar: dict[str, str] = field(default_factory=dict)
+    translate: dict[str, str] = field(default_factory=dict)
+    add: AddCommandConfig = field(default_factory=AddCommandConfig)
+
+
+@dataclass
 class Config:
     app: AppConfig = field(default_factory=AppConfig)
     integrations: dict[str, dict] = field(default_factory=dict)
-    commands: dict[str, dict[str, str]] = field(default_factory=dict)
+    commands: CommandsConfig = field(default_factory=CommandsConfig)
 
     @staticmethod
     def load(path: Path = Path("config.toml")) -> "Config":

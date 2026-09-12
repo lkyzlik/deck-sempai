@@ -9,7 +9,6 @@ from rich.text import Text
 from Config import Config
 from Deck import Deck, DeckMeta
 from DeckOperator import DeckOpResult, DeckOpError
-from Enums import GrammarRule
 
 from exporters.Exporter import Exporter
 from exporters.AnkiExporter import AnkiExporter
@@ -216,16 +215,14 @@ class App:
             except DeckOpError as e:
                 self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
 
-            grammar_rule = ",".join(g.value for g in GrammarRule)
-            for side in ("front", "back"):
-                try:
-                    self.transformers["add-sound"].transform_deck(note_deck, side=side)
-                except DeckOpError as e:
-                    self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
-                try:
-                    self.transformers["add-grammar"].transform_deck(note_deck, side=side, grammar_rule=grammar_rule)
-                except DeckOpError as e:
-                    self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
+            try:
+                self.transformers["add-sound"].transform_deck(note_deck)
+            except DeckOpError as e:
+                self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
+            try:
+                self.transformers["add-grammar"].transform_deck(note_deck)
+            except DeckOpError as e:
+                self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
 
             if self._preview("Preview:", note_deck):
                 self._save_deck(deck + note_deck)

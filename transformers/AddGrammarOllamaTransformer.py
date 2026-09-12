@@ -19,7 +19,7 @@ class AddGrammarOllamaTransformer(Transformer):
 
 
     def transform_deck(self, deck: Deck, side: str = Side.FRONT.value, lang: str = None,
-                       grammar_rule: str = None, model: str = None) -> DeckOpResult:
+                       rule: str = None, model: str = None) -> DeckOpResult:
         if not lang:
             raise DeckOpError(self, "Missing argument: lang")
         try:
@@ -29,4 +29,4 @@ class AddGrammarOllamaTransformer(Transformer):
                                     ', '.join([l.value for l in Language]))
 
         tool = GrammarToolOllama(lang, self.ollama, model, self.prompts_path)
-        return AddGrammarTransformer(self.logger, tool).transform_deck(deck, side=side, grammar_rule=grammar_rule)
+        return AddGrammarTransformer(self.logger, tool).transform_deck(deck, side=side, rule=rule)

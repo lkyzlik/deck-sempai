@@ -1,6 +1,6 @@
 
 from Deck import Deck
-from DeckOperator import DeckOpError, DeckOpResult
+from DeckOperator import DeckOpError, DeckOpResult, NoteOpResult
 from Enums import Language, Side
 from ui.Logger import Logger
 from transformers.Transformer import Transformer
@@ -33,7 +33,7 @@ class AddSoundManager(Transformer):
 
     def transform_deck(self, deck: Deck, side: str = None, lang: str = None) -> DeckOpResult:
         if not side:
-            raise DeckOpError(self, "Missing argument: side")
+            return self._transform_deck_all_sides(deck, lang)
         try:
             side = Side(side)
         except ValueError:
@@ -47,3 +47,21 @@ class AddSoundManager(Transformer):
             raise DeckOpError(self, "Invalid argument: lang, supported: " + ", ".join([l.value for l in Language]))
 
         return self._transform_deck(deck, side, lang)
+
+
+    def _transform_deck_all_sides(self, deck: Deck, lang: str = None) -> DeckOpResult:
+        combined_results = None
+        op_title = "Skipped"
+
+        for side in Side:
+            result = self.transform_deck(deck, side=side.value, lang=lang)
+            if result.op_title != "Skipped":
+                op_title = result.op_title
+
+            if combined_results is None:
+                combined_results = result.note_results
+            else:
+                combined_results = [NoteOpResult(success=a.success and b.success)
+                                    for a, b in zip(combined_results, result.note_results)]
+
+        return DeckOpResult(combined_results, op_title=op_title)

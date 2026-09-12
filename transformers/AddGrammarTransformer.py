@@ -99,20 +99,20 @@ class AddGrammarTransformer(Transformer):
         return DeckOpResult(results, op_title="Added grammar help (AI)")
 
 
-    def transform_deck(self, deck: Deck, side: str = Side.FRONT.value, grammar_rule: str = None) -> DeckOpResult:
+    def transform_deck(self, deck: Deck, side: str = Side.FRONT.value, rule: str = None) -> DeckOpResult:
         try:
             side = Side(side)
         except ValueError:
             raise DeckOpError(self, "Invalid argument: side, supported: " +
                                     ', '.join([s.value for s in Side]))
 
-        if not grammar_rule:
-            raise DeckOpError(self, "Missing argument: grammar_rule, supported: " +
-                                    ', '.join([g.value for g in GrammarRule]))
-        try:
-            grammar_rules = [GrammarRule(gr.strip()) for gr in grammar_rule.split(",")]
-        except ValueError:
-            raise DeckOpError(self, "Invalid argument: grammar_rule, supported (comma-separated): " +
-                                    ', '.join([g.value for g in GrammarRule]))
+        if not rule:
+            grammar_rules = list(GrammarRule)
+        else:
+            try:
+                grammar_rules = [GrammarRule(gr.strip()) for gr in rule.split(",")]
+            except ValueError:
+                raise DeckOpError(self, "Invalid argument: rule, supported (comma-separated): " +
+                                        ', '.join([g.value for g in GrammarRule]))
 
         return self._transform_deck(deck, side, grammar_rules)

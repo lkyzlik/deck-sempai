@@ -19,7 +19,7 @@ class AddGrammarOrdnetTransformer(Transformer):
 
 
     def transform_deck(self, deck: Deck, side: str = Side.FRONT.value, lang: str = None,
-                       grammar_rule: str = None) -> DeckOpResult:
+                       rule: str = None) -> DeckOpResult:
         if not lang:
             raise DeckOpError(self, "Missing argument: lang")
         try:
@@ -32,4 +32,4 @@ class AddGrammarOrdnetTransformer(Transformer):
             raise DeckOpError(self, f"'ordnet.dk' grammar tool only supports Danish, not {lang!s}")
 
         tool = GrammarToolOrdnet(lang, self.ordnet, self.media_dir)
-        return AddGrammarTransformer(self.logger, tool).transform_deck(deck, side=side, grammar_rule=grammar_rule)
+        return AddGrammarTransformer(self.logger, tool).transform_deck(deck, side=side, rule=rule)

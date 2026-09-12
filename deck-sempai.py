@@ -84,26 +84,34 @@ def show():
 
 
 @cli.command()
-def sound(side: str = typer.Argument(help=f"Side of the card: {', '.join([s.value for s in Side])}"),
+def sound(side: Optional[str] = typer.Argument(None, help=f"Side of the card: {', '.join([s.value for s in Side])}. If omitted, applies to both sides."),
           delete: bool = typer.Option(False, "--delete", "-d", help="Remove sound instead of adding it.")):
     """
-    Add sound to the specified SIDE of the current deck.
-    Use --delete/-d to remove sounds instead.
+    Add sound to the specified SIDE of the current deck. If SIDE is omitted, adds sound
+    to both sides.
+    Use --delete/-d to remove sounds instead (defaults to the back side if SIDE is omitted).
     """
+    kwargs = {"side": side} if side else {}
     if delete:
-        app.transform("remove-sound", side=side)
+        app.transform("remove-sound", **kwargs)
     else:
-        app.transform("add-sound", side=side)
+        app.transform("add-sound", **kwargs)
 
 
 @cli.command()
-def grammar(grammar_rule: str = typer.Argument(help=f"Comma-separated grammar help rules: {', '.join([g.value for g in GrammarRule])}"),
-            side: str = typer.Argument(help=f"Side of the card: {', '.join([s.value for s in Side])}")):
+def grammar(rule: Optional[str] = typer.Argument(None, help=f"Comma-separated grammar help rules: {', '.join([g.value for g in GrammarRule])}. If omitted, applies all of them."),
+            side: Optional[str] = typer.Argument(None, help=f"Side of the card: {', '.join([s.value for s in Side])}. If omitted, applies to both sides.")):
     """
-    Add grammar help of the specified GRAMMAR_RULE(s) to the specified SIDE of the current deck.
+    Add grammar help of the specified RULE(s) to the specified SIDE of the current deck.
     Multiple rules can be combined as a comma-separated list, e.g. 'noun_article,noun_plural'.
+    If RULE is omitted, applies all supported rules. If SIDE is omitted, applies to both sides.
     """
-    app.transform("add-grammar", grammar_rule=grammar_rule, side=side)
+    kwargs = {}
+    if rule:
+        kwargs["rule"] = rule
+    if side:
+        kwargs["side"] = side
+    app.transform("add-grammar", **kwargs)
 
 
 @cli.command()

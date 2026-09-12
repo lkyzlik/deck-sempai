@@ -1,5 +1,5 @@
 from Deck import Deck
-from DeckOperator import DeckOpError, DeckOpResult
+from DeckOperator import DeckOpError, DeckOpResult, NoteOpResult
 from Enums import Side, Language
 from transformers.Transformer import Transformer
 from ui.Logger import Logger
@@ -18,8 +18,10 @@ class TranslateManager(Transformer):
         self.language_pair_map = language_pair_map or {}
 
 
-    def transform_deck(self, deck: Deck, side: str = Side.FRONT + "-" + Side.BACK,
-                       lang: str = None) -> DeckOpResult:
+    def transform_deck(self, deck: Deck, side: str = None, lang: str = None) -> DeckOpResult:
+        if side is None:
+            return self._transform_deck_auto(deck, lang)
+
         try:
             side_from, side_to = side.split("-")
             side_from = Side(side_from)
@@ -49,3 +51,36 @@ class TranslateManager(Transformer):
             raise DeckOpError(self, f"{name!r} transformer not found")
 
         return transformer.transform_deck(deck, side=f"{side_from}-{side_to}", lang=f"{lang_from}-{lang_to}")
+
+
+    def _transform_deck_auto(self, deck: Deck, lang: str = None) -> DeckOpResult:
+        """
+        Translates each note from its filled side to its empty side, skipping notes
+        that already have text on both sides.
+        """
+        forward_indices = []
+        backward_indices = []
+
+        for i, note in enumerate(deck.notes):
+            has_front = bool(note.front.text)
+            has_back = bool(note.back.text)
+            if has_front and not has_back:
+                forward_indices.append(i)
+            elif has_back and not has_front:
+                backward_indices.append(i)
+
+        results = [NoteOpResult(success=True) for _ in deck.notes]
+
+        for indices, side in ((forward_indices, f"{Side.FRONT}-{Side.BACK}"), (backward_indices, f"{Side.BACK}-{Side.FRONT}")):
+            if not indices:
+                continue
+
+            sub_deck = Deck()
+            sub_deck.meta = deck.meta
+            sub_deck.notes = [deck.notes[i] for i in indices]
+
+            sub_result = self.transform_deck(sub_deck, side=side, lang=lang)
+            for i, note_result in zip(indices, sub_result.note_results):
+                results[i] = note_result
+
+        return DeckOpResult(results, op_title="Translated (AI)")

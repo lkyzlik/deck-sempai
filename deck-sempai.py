@@ -106,6 +106,18 @@ def grammar(grammar_rule: str = typer.Argument(help=f"Comma-separated grammar he
     app.transform("add-grammar", grammar_rule=grammar_rule, side=side)
 
 
+@cli.command()
+def translate(side: Optional[str] = typer.Argument(None, help=f"Direction to translate: FROM-TO, where FROM and TO are: {', '.join([s.value for s in Side])}.")):
+    """
+    Translate the current deck. If SIDE (format FROM-TO) is given, translates every note
+    from FROM to TO, overwriting TO regardless of its current content.
+
+    If SIDE is omitted, translates each note from whichever side is filled to whichever
+    side is empty, skipping notes that already have text on both sides.
+    """
+    app.transform("translate", side=side)
+
+
 @cli.command(context_settings=CTX_SETTINGS)
 def transform(ctx: typer.Context, transformer: str = typer.Argument(help="Name of the transformer to use.")):
     """

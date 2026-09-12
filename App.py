@@ -194,8 +194,6 @@ class App:
 
             note_deck = Deck()
             note_deck.meta = deck.meta
-            translate_forward = []
-            translate_backward = []
 
             for front, back, model, tags in entries:
                 line_kwargs = {"front": front, "back": back or "", "tags": tags}
@@ -209,30 +207,14 @@ class App:
 
                 note = imported.notes[0]
                 note_deck.notes.append(note)
-                if not back:
-                    translate_forward.append(note)
-                elif not front:
-                    translate_backward.append(note)
 
             if not note_deck.notes:
                 return
 
-            if translate_forward:
-                sub_deck = Deck()
-                sub_deck.meta = deck.meta
-                sub_deck.notes = translate_forward
-                try:
-                    self.transformers["translate"].transform_deck(sub_deck, side="front-back")
-                except DeckOpError as e:
-                    self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
-            if translate_backward:
-                sub_deck = Deck()
-                sub_deck.meta = deck.meta
-                sub_deck.notes = translate_backward
-                try:
-                    self.transformers["translate"].transform_deck(sub_deck, side="back-front")
-                except DeckOpError as e:
-                    self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
+            try:
+                self.transformers["translate"].transform_deck(note_deck)
+            except DeckOpError as e:
+                self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
 
             grammar_rule = ",".join(g.value for g in GrammarRule)
             for side in ("front", "back"):

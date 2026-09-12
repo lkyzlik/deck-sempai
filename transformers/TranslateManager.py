@@ -7,11 +7,15 @@ from ui.Logger import Logger
 
 class TranslateManager(Transformer):
     """
-    Manages which translation transformer to use.
+    Picks which translation transformer to use based on the from/to language pair.
     """
-    def __init__(self, logger: Logger, transformers: dict[str, Transformer]):
+    DEFAULT_TRANSFORMER = "skip"
+
+
+    def __init__(self, logger: Logger, transformers: dict[str, Transformer], language_pair_map: dict[str, str] = None):
         super().__init__(logger)
         self.transformers = transformers
+        self.language_pair_map = language_pair_map or {}
 
 
     def transform_deck(self, deck: Deck, side: str = Side.FRONT + "-" + Side.BACK,
@@ -38,8 +42,10 @@ class TranslateManager(Transformer):
         except ValueError:
             raise DeckOpError(self, f"Invalid argument: lang, supported format: FROM-TO, where FROM and TO are: {', '.join([l.value for l in Language])}")
 
-        if lang_from == Language.NONE or lang_to == Language.NONE:
-            raise DeckOpError(self, "Missing argument: lang, and no language found in deck metadata")
+        pair = f"{lang_from.short()}-{lang_to.short()}"
+        name = self.language_pair_map.get(pair) or self.language_pair_map.get("other", self.DEFAULT_TRANSFORMER)
+        transformer = self.transformers.get(name)
+        if not transformer:
+            raise DeckOpError(self, f"{name!r} transformer not found")
 
-        # For now, always default to the TranslateOllamaTransformer
-        return self.transformers['translate-ollama'].transform_deck(deck, side=f"{side_from}-{side_to}", lang=f"{lang_from}-{lang_to}")
+        return transformer.transform_deck(deck, side=f"{side_from}-{side_to}", lang=f"{lang_from}-{lang_to}")

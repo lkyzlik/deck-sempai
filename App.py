@@ -33,6 +33,7 @@ from transformers.TranslateOllamaTransformer import TranslateOllamaTransformer
 from transformers.AddGrammarOllamaTransformer import AddGrammarOllamaTransformer
 from transformers.AddGrammarOrdnetTransformer import AddGrammarOrdnetTransformer
 from transformers.AddGrammarManager import AddGrammarManager
+from transformers.SkipTransformer import SkipTransformer
 from transformers.TranslateManager import TranslateManager
 
 
@@ -70,6 +71,7 @@ class App:
             "line": LineImporter(self.frontend),
         }
         self.transformers : dict[str, Transformer] = {
+            "skip": SkipTransformer(self.frontend),
             "add-sound-ordnet": AddSoundOrdnetTransformer(self.frontend, self.integrations["ordnet"], self.media_dir),
             "remove-sound": RemoveSoundTransformer(self.frontend),
             "ollama": OllamaTransformer(self.frontend, self.integrations["ollama"]),
@@ -79,9 +81,9 @@ class App:
         }
 
         # Add managers (this must be done after all individual deck operators are created)
-        self.transformers["add-sound"] = AddSoundManager(self.frontend, self.transformers)
-        self.transformers["add-grammar"] = AddGrammarManager(self.frontend, self.transformers)
-        self.transformers["translate"] = TranslateManager(self.frontend, self.transformers)
+        self.transformers["add-sound"] = AddSoundManager(self.frontend, self.transformers, self.config.commands.get("sound", {}))
+        self.transformers["add-grammar"] = AddGrammarManager(self.frontend, self.transformers, self.config.commands.get("grammar", {}))
+        self.transformers["translate"] = TranslateManager(self.frontend, self.transformers, self.config.commands.get("translate", {}))
 
         self._load_state()
 

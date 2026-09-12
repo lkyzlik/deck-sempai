@@ -1,0 +1,26 @@
+[app]
+deck_storage = "anki"
+
+[commands.grammar]
+da = "add-grammar-ordnet"
+en = "skip"
+other = "add-grammar-ollama"
+
+[commands.sound]
+da = "add-sound-ordnet"
+other = "skip"
+
+[commands.translate]
+other = "translate-ollama"
+
+[integrations.anki]
+enable = true
+host = "localhost"
+port = "8765"
+
+[integrations.ollama]
+default_model = "gemma4"
+enable = true
+
+[integrations.ordnet]
+enable = true

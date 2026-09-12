@@ -23,6 +23,7 @@ from integrations.OllamaIntegration import OllamaIntegration
 from integrations.OrdnetIntegration import OrdnetIntegration
 from ui.Frontend import Frontend
 from ui.RichConsoleFrontend import RichConsoleFrontend
+from ui.SimpleConsoleFrontend import SimpleConsoleFrontend
 
 from transformers.Transformer import Transformer
 from transformers.AddSoundManager import AddSoundManager
@@ -53,6 +54,7 @@ class App:
 
         frontends: dict[str, type[Frontend]] = {
             "rich": RichConsoleFrontend,
+            "simple": SimpleConsoleFrontend,
         }
         frontend_cls = frontends.get(self.config.app.frontend)
         if not frontend_cls:

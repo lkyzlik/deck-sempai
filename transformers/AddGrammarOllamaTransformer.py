@@ -12,11 +12,9 @@ from transformers.Transformer import Transformer
 
 
 class AddGrammarOllamaTransformer(Transformer):
-    def __init__(self, logger: Logger, ollama: OllamaIntegration, default_model: str = "gemma4",
-                prompts_path: Path = "prompts.toml"):
+    def __init__(self, logger: Logger, ollama: OllamaIntegration, prompts_path: Path = "prompts.toml"):
         super().__init__(logger)
         self.ollama = ollama
-        self.default_model = default_model
         self.prompts_path = prompts_path
 
 
@@ -30,5 +28,5 @@ class AddGrammarOllamaTransformer(Transformer):
             raise DeckOpError(self, "Invalid argument: lang, supported: " +
                                     ', '.join([l.value for l in Language]))
 
-        tool = GrammarToolOllama(lang, self.ollama, model or self.default_model, self.prompts_path)
+        tool = GrammarToolOllama(lang, self.ollama, model, self.prompts_path)
         return AddGrammarTransformer(self.logger, tool).transform_deck(deck, side=side, grammar_rule=grammar_rule)

@@ -17,9 +17,9 @@ class AnkiIntegration:
 
 
     def configure(self, config: dict):
-        if "host" in config:
+        if config.get("host"):
             self.host = config["host"]
-        if "port" in config:
+        if config.get("port"):
             self.port = config["port"]
 
 

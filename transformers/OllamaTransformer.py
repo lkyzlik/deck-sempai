@@ -7,11 +7,9 @@ from DeckOperator import NoteOpResult, DeckOpResult, DeckOpError
 
 
 class OllamaTransformer(Transformer):
-    def __init__(self, logger: Logger, ollama: OllamaIntegration, default_model: str = "gemma4",
-                prog_title: str = "Processing..."):
+    def __init__(self, logger: Logger, ollama: OllamaIntegration, prog_title: str = "Processing..."):
         super().__init__(logger)
         self.ollama = ollama
-        self.default_model = default_model
         self.prog_title = prog_title
 
 
@@ -25,7 +23,7 @@ class OllamaTransformer(Transformer):
             {"role": "user", "content": field_from.text}
         ]
         try:
-            field_to.text = self.ollama.chat(model, messages, think=think, temperature=temperature)
+            field_to.text = self.ollama.chat(messages, model=model, think=think, temperature=temperature)
             field_to.sounds = [] # Clear sounds since the text has changed
         except OllamaIntegrationDisabledError as e:
             raise DeckOpError(self, str(e)) from e
@@ -43,8 +41,7 @@ class OllamaTransformer(Transformer):
 
             results : list[NoteOpResult] = []
             for note in deck.notes:
-                result = self._transform_note(note, side_from, side_to, prompt, think,
-                                              model or self.default_model, temperature)
+                result = self._transform_note(note, side_from, side_to, prompt, think, model, temperature)
                 results.append(result)
                 prog.update(task, advance=1)
 

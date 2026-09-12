@@ -6,6 +6,7 @@ from platformdirs import user_data_dir
 from pathlib import Path
 from rich.text import Text
 
+from Config import Config
 from Deck import Deck, DeckMeta
 from DeckOperator import DeckOpResult, DeckOpError
 from Enums import GrammarRule
@@ -41,8 +42,8 @@ class AppState:
 
 
 class App:
-    def __init__(self, config: dict):
-        self.config = config
+    def __init__(self):
+        self.config = Config.load()
         self.state = AppState()
 
         data_dir = Path(user_data_dir("deck-sempai"))
@@ -51,11 +52,15 @@ class App:
 
         # Interfaces
         self.frontend = RichConsoleFrontend()
-        self.integrations : dict[str, Integration] = {
-            "anki": AnkiIntegration(),
-            "ollama": OllamaIntegration(),
-            "ordnet": OrdnetIntegration(),
-        }
+
+        # Integrations
+        self.integrations : dict[str, Integration] = {}
+        for name, integration_cls in (("anki", AnkiIntegration), ("ollama", OllamaIntegration), ("ordnet", OrdnetIntegration)):
+            integration_config = self.config.integrations.get(name, {})
+            integration = integration_cls()
+            integration.configure(integration_config)
+            integration.enable(integration_config.get("enable", True))
+            self.integrations[name] = integration
 
         self.exporters : dict[str, Exporter] = {
             "anki": AnkiExporter(self.frontend, self.integrations["anki"], self.media_dir),
@@ -98,11 +103,11 @@ class App:
 
 
     def _load_deck(self):
-        return self.importers[self.config["load_importer"]].import_deck(self.state.current_deck)
+        return self.importers[self.config.app.deck_storage].import_deck(self.state.current_deck)
 
 
     def _save_deck(self, deck: Deck):
-        self.exporters[self.config["save_exporter"]].export_deck(deck)
+        self.exporters[self.config.app.deck_storage].export_deck(deck)
 
 
     def _preview(self, title: str, deck: Deck, results: DeckOpResult = None) -> bool:

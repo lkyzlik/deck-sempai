@@ -12,11 +12,9 @@ from transformers.Transformer import Transformer
 
 
 class TranslateOllamaTransformer(Transformer):
-    def __init__(self, logger: Logger, ollama: OllamaIntegration, default_model: str = "gemma4",
-                prompts_path: Path = "prompts.toml"):
+    def __init__(self, logger: Logger, ollama: OllamaIntegration, prompts_path: Path = "prompts.toml"):
         super().__init__(logger)
         self.ollama = ollama
-        self.default_model = default_model
         self.prompts_path = prompts_path
 
 
@@ -31,5 +29,5 @@ class TranslateOllamaTransformer(Transformer):
         except ValueError:
             raise DeckOpError(self, f"Invalid argument: lang, supported format: FROM-TO, where FROM and TO are: {', '.join([l.value for l in Language])}")
 
-        tool = TranslateToolOllama(lang_from, lang_to, self.ollama, model or self.default_model, self.prompts_path)
+        tool = TranslateToolOllama(lang_from, lang_to, self.ollama, model, self.prompts_path)
         return TranslateTransformer(self.logger, tool).transform_deck(deck, side=side)

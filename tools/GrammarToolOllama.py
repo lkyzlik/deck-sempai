@@ -7,7 +7,7 @@ from tools.GrammarTool import GrammarTool, GrammarToolError, GrammarToolDisabled
 
 
 class GrammarToolOllama(GrammarTool):
-    def __init__(self, lang: Language, ollama: OllamaIntegration, model: str = "gemma4",
+    def __init__(self, lang: Language, ollama: OllamaIntegration, model: str = None,
                 prompts_path: Path = "prompts.toml"):
         super().__init__(lang)
         self.ollama = ollama
@@ -24,8 +24,9 @@ class GrammarToolOllama(GrammarTool):
             {"role": "user", "content": prompt},
             {"role": "user", "content": word}
         ]
+        chat_kwargs = {"model": self.model} if self.model else {}
         try:
-            answer = self.ollama.chat(self.model, messages, temperature=0).lower()  # Deterministic output
+            answer = self.ollama.chat(messages, temperature=0, **chat_kwargs).lower()  # Deterministic output
         except OllamaIntegrationDisabledError as e:
             raise GrammarToolDisabledError(str(e)) from e
         except OllamaIntegrationError as e:

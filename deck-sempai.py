@@ -5,16 +5,10 @@ from App import App
 from Deck import Side
 from Enums import GrammarRule, Model
 
-# TODO: load from .toml file
-CONFIG = {
-    "load_importer": "anki",
-    "save_exporter": "anki",
-    "show_exporter": "rich",
-}
 CTX_SETTINGS = {"allow_extra_args": True, "ignore_unknown_options": True}
 
 
-app = App(CONFIG)
+app = App()
 cli = typer.Typer()
 
 

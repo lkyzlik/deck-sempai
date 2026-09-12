@@ -7,7 +7,7 @@ from tools.TranslateTool import TranslateTool, TranslateToolError, TranslateTool
 
 
 class TranslateToolOllama(TranslateTool):
-    def __init__(self, lang_from: Language, lang_to: Language, ollama: OllamaIntegration, model: str = "gemma4",
+    def __init__(self, lang_from: Language, lang_to: Language, ollama: OllamaIntegration, model: str = None,
                 prompts_path: Path = "prompts.toml"):
         super().__init__(lang_from, lang_to)
         self.ollama = ollama
@@ -24,8 +24,9 @@ class TranslateToolOllama(TranslateTool):
             {"role": "user", "content": prompt},
             {"role": "user", "content": text}
         ]
+        chat_kwargs = {"model": self.model} if self.model else {}
         try:
-            return self.ollama.chat(self.model, messages, temperature=0)  # Deterministic output
+            return self.ollama.chat(messages, temperature=0, **chat_kwargs)  # Deterministic output
         except OllamaIntegrationDisabledError as e:
             raise TranslateToolDisabledError(str(e)) from e
         except OllamaIntegrationError as e:

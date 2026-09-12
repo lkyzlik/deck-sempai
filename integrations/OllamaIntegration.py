@@ -5,6 +5,7 @@ class OllamaIntegration:
     def __init__(self):
         self._enabled = True
         self._host = None
+        self._default_model = "gemma4"
 
 
     def enable(self, enable: bool):
@@ -12,8 +13,10 @@ class OllamaIntegration:
 
 
     def configure(self, config: dict):
-        if "host" in config:
+        if config.get("host"):
             self._host = config["host"]
+        if config.get("default_model"):
+            self._default_model = config["default_model"]
 
 
     def _client(self) -> Client:
@@ -43,15 +46,15 @@ class OllamaIntegration:
         )
 
 
-    def chat(self, model: str, messages: list[dict], think: bool | str = False,
+    def chat(self, messages: list[dict], model: str = None, think: bool | str = False,
              temperature: float = None, keep_alive: str = "10s") -> str:
         if not self._enabled:
             raise OllamaIntegrationDisabledError("Integration is disabled")
 
         options = {"temperature": temperature} if temperature is not None else None
         try:
-            response: ChatResponse = self._client().chat(model, messages=messages, think=think,
-                                                          keep_alive=keep_alive, options=options)
+            response: ChatResponse = self._client().chat(model or self._default_model, messages=messages, think=think,
+                                                         keep_alive=keep_alive, options=options)
         except (ResponseError, ConnectionError) as e:
             raise OllamaIntegrationError("AI request failed") from e
 

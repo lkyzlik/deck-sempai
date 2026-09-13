@@ -53,7 +53,12 @@ class GrammarToolOllama(GrammarTool):
 
     def pos(self, text: str) -> str:
         word = self._word_with(text, keep_articles=True, keep_markers=True)
-        return self._ask("pos", word, "classify the part of speech")
+        try:
+            return super().pos(text)
+        except GrammarToolDisabledError:
+            raise
+        except GrammarToolError:
+            return self._ask("pos", word, "classify the part of speech")
 
 
     def noun_article(self, text: str, definite: bool = False) -> str:

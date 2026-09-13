@@ -21,6 +21,8 @@ class GrammarToolOrdnet(GrammarTool):
         "interj.": "interjection",
     }
 
+    POS_KEY_MAP = {pos: key for key, pos in POS_MAP.items()}
+
 
     def __init__(self, lang: Language, ordnet: OrdnetIntegration, media_dir: Path):
         super().__init__(lang)
@@ -37,10 +39,13 @@ class GrammarToolOrdnet(GrammarTool):
 
 
     def _get_entry(self, text: str) -> Tag:
-        # OrdnetIntegration.get_html() already resolves the text to the right dictionary
-        # entry (picking the correct homonym when the text implies a part of speech), so
-        # the returned HTML is just that one entry.
-        html = self.scraper.get_html(text)
+        # Uses the cheap super().pos() heuristic, not self.pos(), to avoid recursing into _get_entry().
+        word = self.extract_word(text)["word"]
+        try:
+            pos = super().pos(text)
+        except GrammarToolError:
+            pos = None
+        html = self.scraper.get_html(word, pos=self.POS_KEY_MAP.get(pos))
         return BeautifulSoup(html, "html.parser")
 
 
@@ -98,6 +103,11 @@ class GrammarToolOrdnet(GrammarTool):
 
 
     def pos(self, text: str) -> str:
+        try:
+            return super().pos(text)
+        except GrammarToolError:
+            pass
+
         word = self.extract_word(text)["word"]
         try:
             entry = self._get_entry(text)

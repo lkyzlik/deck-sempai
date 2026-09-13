@@ -90,7 +90,14 @@ class GrammarTool:
         raise NotImplementedError
 
     def pos(self, text: str) -> str:
-        raise NotImplementedError
+        # Only a leading article or infinitive marker gives this away, so anything else
+        # (adjectives, adverbs, ...) can't be classified this way.
+        result = self.extract_word(text)
+        if result["articles"]:
+            return "noun"
+        if result["markers"]:
+            return "verb"
+        raise GrammarToolError(f"Can't classify the part of speech for {result['word']!r}")
 
     def noun_article(self, text: str, definite: bool = False) -> str:
         raise NotImplementedError

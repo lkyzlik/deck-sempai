@@ -3,12 +3,13 @@ deck_storage = "anki"
 frontend = "rich"
 
 [commands.grammar]
-da = "add-grammar-ordnet"
-en = "skip"
+da-DK = "add-grammar-ordnet"
+en-GB = "skip"
+en-US = "skip"
 other = "add-grammar-ollama"
 
 [commands.sound]
-da = "add-sound-ordnet"
+da-DK = "add-sound-ordnet"
 other = "skip"
 
 [commands.translate]

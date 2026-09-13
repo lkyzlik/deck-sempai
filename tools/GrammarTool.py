@@ -17,16 +17,37 @@ class GrammarTool:
     # Articles and infinitive markers to strip from the front of a word, per language
     ARTICLES = {
         Language.DANISH: ("en", "et", "den", "det"),
-        Language.ENGLISH: ("a", "an", "the"),
+        Language.ENGLISH_GB: ("a", "an", "the"),
+        Language.ENGLISH_US: ("a", "an", "the"),
+        Language.GERMAN_DE: ("der", "die", "das", "den", "dem", "des",
+                              "ein", "eine", "einen", "einem", "einer", "eines"),
+        Language.SPANISH_ES: ("el", "la", "los", "las", "un", "una", "unos", "unas"),
     }
 
     MARKERS = {
         Language.DANISH: ("at",),
-        Language.ENGLISH: ("to",),
+        Language.ENGLISH_GB: ("to",),
+        Language.ENGLISH_US: ("to",),
+        Language.GERMAN_DE: ("zu",),
     }
+
+    # Languages whose plural noun form differs between definite and indefinite (e.g. Danish
+    # suffixes the article onto the noun); everyone else has a single plural form.
+    LANGUAGES_WITH_DEFINITE_PLURAL = (Language.DANISH,)
+
+    # Languages with a definite article as its own word (e.g. German 'der'/'die'/'das', Spanish
+    # 'el'/'la'); Danish's definite article is a suffix on the noun instead, so it's excluded.
+    LANGUAGES_WITH_DEFINITE_ARTICLE = (Language.ENGLISH_GB, Language.ENGLISH_US,
+                                        Language.GERMAN_DE, Language.SPANISH_ES)
 
     def __init__(self, lang: Language) -> None:
         self.lang = lang
+
+    def noun_has_definite_plural(self) -> bool:
+        return self.lang in self.LANGUAGES_WITH_DEFINITE_PLURAL
+
+    def noun_has_definite_article(self) -> bool:
+        return self.lang in self.LANGUAGES_WITH_DEFINITE_ARTICLE
 
     def extract_word(self, text: str) -> dict[str, str | None]:
         # Remove any text in braces (), [], <>, {}
@@ -71,7 +92,7 @@ class GrammarTool:
     def pos(self, text: str) -> str:
         raise NotImplementedError
 
-    def noun_article(self, text: str) -> str:
+    def noun_article(self, text: str, definite: bool = False) -> str:
         raise NotImplementedError
 
     def noun_plural_suffix(self, text: str, definite: bool = False) -> str:

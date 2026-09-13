@@ -36,9 +36,15 @@ class AddGrammarTransformer(Transformer):
 
 
     def _get_noun_plural(self, word: str) -> str:
+        if not self.tool.noun_has_definite_plural():
+            return f"{self.tool.noun_plural_suffix(word)}"
         indefinite = self.tool.noun_plural_suffix(word)
         definite = self.tool.noun_plural_suffix(word, definite=True)
         return f"{indefinite}, {definite}"
+
+
+    def _get_noun_article(self, word: str) -> str:
+        return self.tool.noun_article(word, definite=self.tool.noun_has_definite_article())
 
 
     def _fill_result_format(self, values: dict[str, str]) -> str:
@@ -66,7 +72,7 @@ class AddGrammarTransformer(Transformer):
         # Fetch the grammar help for every applicable rule and fill it into RESULT_FORMAT.
         # Each entry maps a grammar rule to its (placeholder name, value-fetching method).
         handlers: dict[GrammarRule, tuple[str, callable]] = {
-            GrammarRule.NOUN_ARTICLE: ("ARTICLE", self.tool.noun_article),
+            GrammarRule.NOUN_ARTICLE: ("ARTICLE", self._get_noun_article),
             GrammarRule.NOUN_PLURAL: ("PLURAL", self._get_noun_plural),
             GrammarRule.VERB_TENSES: ("TENSES", self._get_verb_tenses),
             GrammarRule.VERB_INFINITIVE: ("WORD", self.tool.verb_infinitive),

@@ -56,15 +56,20 @@ class GrammarToolOllama(GrammarTool):
         return self._ask("pos", word, "classify the part of speech")
 
 
-    def noun_article(self, text: str) -> str:
+    def noun_article(self, text: str, definite: bool = False) -> str:
+        if definite and not self.noun_has_definite_article():
+            raise GrammarToolError(f"{self.lang} has no definite article")
         word = self._word_with(text, keep_articles=True)
-        return self._ask(f"noun.article.{self.lang.short()}", word, "determine the article")
+        key = "definite" if definite else "indefinite"
+        return self._ask(f"noun.article.{key}.{self.lang.short()}", word, f"determine the {key} article")
 
 
     def noun_plural_suffix(self, text: str, definite: bool = False) -> str:
-        key = "definite" if definite else "indefinite"
         word = self._word_with(text, keep_articles=True)
-        return self._ask(f"noun.plural.{key}.{self.lang.short()}", word, f"determine the {key} plural")
+        if self.noun_has_definite_plural():
+            key = "definite" if definite else "indefinite"
+            return self._ask(f"noun.plural.{key}.{self.lang.short()}", word, f"determine the {key} plural")
+        return self._ask(f"noun.plural.{self.lang.short()}", word, "determine the plural")
 
 
     def verb_tense(self, text: str, tense: str) -> str:

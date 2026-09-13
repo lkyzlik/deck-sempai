@@ -113,7 +113,9 @@ class GrammarToolOrdnet(GrammarTool):
         return pos
 
 
-    def noun_article(self, text: str) -> str:
+    def noun_article(self, text: str, definite: bool = False) -> str:
+        if definite and not self.noun_has_definite_article():
+            raise GrammarToolError(f"{self.lang} has no definite article")
         word = self.extract_word(text)["word"]
         try:
             entry = self._get_entry(text)

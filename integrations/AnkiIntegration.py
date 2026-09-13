@@ -131,13 +131,27 @@ class AnkiIntegration:
         return self._invoke("saveDeckConfig", config=config)
 
 
+    def _private_config_name(self, deck_name: str) -> str:
+        return f"sempai::{deck_name}"
+
+
     def get_deck_meta(self, deck_name: str) -> dict:
         config = self.get_deck_config(deck_name)
+        # Decks share config groups (e.g. "Default") unless split off. Only trust
+        # metadata found in a group we've privately cloned for this deck, otherwise
+        # it belongs to whichever other deck last wrote to the shared group.
+        if config.get("name") != self._private_config_name(deck_name):
+            return {}
         return config.get(self.METADATA_KEY, {})
 
 
     def save_deck_meta(self, deck_name: str, meta: dict) -> None:
         config = self.get_deck_config(deck_name)
+        private_name = self._private_config_name(deck_name)
+        if config.get("name") != private_name:
+            new_id = self._invoke("cloneDeckConfigId", cloneFrom=config["id"], name=private_name)
+            self._invoke("setDeckConfigId", decks=[deck_name], configId=new_id)
+            config = self.get_deck_config(deck_name)
         config[self.METADATA_KEY] = meta
         self.save_deck_config(deck_name, config)
 

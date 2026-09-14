@@ -23,34 +23,34 @@ class TranslateManager(Transformer):
             return self._transform_deck_auto(deck, lang)
 
         try:
-            side_from, side_to = side.split("-")
+            side_from, side_to = side.split(":")
             side_from = Side(side_from)
             side_to = Side(side_to)
         except ValueError:
-            raise DeckOpError(self, f"Invalid argument: side, supported format: FROM-TO, where FROM and TO are: {', '.join([s.value for s in Side])}")
+            raise DeckOpError(self, f"Invalid argument: side, supported format: FROM:TO, where FROM and TO are: {', '.join([s.value for s in Side])}")
 
         if not lang:
             lang_from = deck.meta.lang_front if side_from == Side.FRONT else deck.meta.lang_back
             lang_to = deck.meta.lang_front if side_to == Side.FRONT else deck.meta.lang_back
         else:
             try:
-                lang_from, lang_to = lang.split("-")
+                lang_from, lang_to = lang.split(":")
             except ValueError:
-                raise DeckOpError(self, f"Invalid argument: lang, supported format: FROM-TO, where FROM and TO are: {', '.join([l.value for l in Language])}")
+                raise DeckOpError(self, f"Invalid argument: lang, supported format: FROM:TO, where FROM and TO are: {', '.join([l.value for l in Language])}")
 
         try:
             lang_from = Language(lang_from)
             lang_to = Language(lang_to)
         except ValueError:
-            raise DeckOpError(self, f"Invalid argument: lang, supported format: FROM-TO, where FROM and TO are: {', '.join([l.value for l in Language])}")
+            raise DeckOpError(self, f"Invalid argument: lang, supported format: FROM:TO, where FROM and TO are: {', '.join([l.value for l in Language])}")
 
-        pair = f"{lang_from.short()}-{lang_to.short()}"
+        pair = f"{lang_from.short()}:{lang_to.short()}"
         name = self.language_pair_map.get(pair) or self.language_pair_map.get("other", self.DEFAULT_TRANSFORMER)
         transformer = self.transformers.get(name)
         if not transformer:
             raise DeckOpError(self, f"{name!r} transformer not found")
 
-        return transformer.transform_deck(deck, side=f"{side_from}-{side_to}", lang=f"{lang_from}-{lang_to}")
+        return transformer.transform_deck(deck, side=f"{side_from}:{side_to}", lang=f"{lang_from}:{lang_to}")
 
 
     def _transform_deck_auto(self, deck: Deck, lang: str = None) -> DeckOpResult:
@@ -71,7 +71,7 @@ class TranslateManager(Transformer):
 
         results = [NoteOpResult(success=True) for _ in deck.notes]
 
-        for indices, side in ((forward_indices, f"{Side.FRONT}-{Side.BACK}"), (backward_indices, f"{Side.BACK}-{Side.FRONT}")):
+        for indices, side in ((forward_indices, f"{Side.FRONT}:{Side.BACK}"), (backward_indices, f"{Side.BACK}:{Side.FRONT}")):
             if not indices:
                 continue
 

@@ -18,16 +18,16 @@ class TranslateOllamaTransformer(Transformer):
         self.prompts_path = prompts_path
 
 
-    def transform_deck(self, deck: Deck, side: str = Side.FRONT + "-" + Side.BACK,
+    def transform_deck(self, deck: Deck, side: str = Side.FRONT + ":" + Side.BACK,
                        lang: str = None, model: str = None) -> DeckOpResult:
         if not lang:
             raise DeckOpError(self, "Missing argument: lang")
         try:
-            lang_from, lang_to = lang.split("-")
+            lang_from, lang_to = lang.split(":")
             lang_from = Language(lang_from)
             lang_to = Language(lang_to)
         except ValueError:
-            raise DeckOpError(self, f"Invalid argument: lang, supported format: FROM-TO, where FROM and TO are: {', '.join([l.value for l in Language])}")
+            raise DeckOpError(self, f"Invalid argument: lang, supported format: FROM:TO, where FROM and TO are: {', '.join([l.value for l in Language])}")
 
         tool = TranslateToolOllama(lang_from, lang_to, self.ollama, model, self.prompts_path)
         return TranslateTransformer(self.logger, tool).transform_deck(deck, side=side)

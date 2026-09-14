@@ -53,11 +53,11 @@ class OllamaTransformer(Transformer):
         if not side:
             raise DeckOpError(self, "Missing argument: side")
         try:
-            side_from, side_to = side.split("-")
+            side_from, side_to = side.split(":")
             side_from = Side(side_from)
             side_to = Side(side_to)
         except ValueError:
-            raise DeckOpError(self, f"Invalid argument: side, supported: FROM-TO, where FROM and TO are: {', '.join([s.value for s in Side])}")
+            raise DeckOpError(self, f"Invalid argument: side, supported: FROM:TO, where FROM and TO are: {', '.join([s.value for s in Side])}")
 
         if not prompt:
             raise DeckOpError(self, "Missing argument: prompt")

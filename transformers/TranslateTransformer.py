@@ -42,12 +42,12 @@ class TranslateTransformer(Transformer):
         return DeckOpResult(results, op_title="Translated (AI)")
 
 
-    def transform_deck(self, deck: Deck, side: str = Side.FRONT + "-" + Side.BACK) -> DeckOpResult:
+    def transform_deck(self, deck: Deck, side: str = Side.FRONT + ":" + Side.BACK) -> DeckOpResult:
         try:
-            side_from, side_to = side.split("-")
+            side_from, side_to = side.split(":")
             side_from = Side(side_from)
             side_to = Side(side_to)
         except ValueError:
-            raise DeckOpError(self, f"Invalid argument: side, supported format: FROM-TO, where FROM and TO are: {', '.join([s.value for s in Side])}")
+            raise DeckOpError(self, f"Invalid argument: side, supported format: FROM:TO, where FROM and TO are: {', '.join([s.value for s in Side])}")
 
         return self._transform_deck(deck, side_from, side_to)

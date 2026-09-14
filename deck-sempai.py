@@ -115,9 +115,9 @@ def grammar(rule: Optional[str] = typer.Argument(None, help=f"Comma-separated gr
 
 
 @cli.command()
-def translate(side: Optional[str] = typer.Argument(None, help=f"Direction to translate: FROM-TO, where FROM and TO are: {', '.join([s.value for s in Side])}.")):
+def translate(side: Optional[str] = typer.Argument(None, help=f"Direction to translate: FROM:TO, where FROM and TO are: {', '.join([s.value for s in Side])}.")):
     """
-    Translate the current deck. If SIDE (format FROM-TO) is given, translates every note
+    Translate the current deck. If SIDE (format FROM:TO) is given, translates every note
     from FROM to TO, overwriting TO regardless of its current content.
 
     If SIDE is omitted, translates each note from whichever side is filled to whichever

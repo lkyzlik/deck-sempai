@@ -2,7 +2,6 @@ import re
 import time
 
 import httpx
-from bs4 import BeautifulSoup
 
 from pathlib import Path
 
@@ -21,28 +20,6 @@ class AddSoundOrdnetTransformer(Transformer):
         self.media_dir = media_dir
 
 
-    def _extract_sound_url(self, html: str) -> str:
-        soup = BeautifulSoup(html, "html.parser")
-
-        lydskrift = soup.find("span", class_="lydskrift")
-        if not lydskrift:
-            raise OrdnetIntegrationError("Can't find sound URL")
-
-        audio = lydskrift.find("audio")
-        if not audio:
-            raise OrdnetIntegrationError("Can't find sound URL")
-
-        hidden_structure = audio.find("div", class_="hiddenStructure")
-        if not hidden_structure:
-            raise OrdnetIntegrationError("Can't find sound URL")
-
-        a = hidden_structure.find("a")
-        if a and a.get("href", "") and a["href"].endswith(".mp3"):
-            return a["href"]
-        else:
-            raise OrdnetIntegrationError("Can't find sound URL")
-
-
     def _download_file(self, url: str, output_path: Path) -> None:
         try:
             resp = self.ordnet.client.get(url, timeout=15)
@@ -58,8 +35,9 @@ class AddSoundOrdnetTransformer(Transformer):
 
 
     def _download_sound(self, word: str, filename: str) -> Path:
-        html = self.ordnet.get_html(word)
-        sound_url = self._extract_sound_url(html)
+        sound_url = self.ordnet.get_entry(word)["sound_url"]
+        if not sound_url:
+            raise OrdnetIntegrationError(f"Can't find sound URL for {word!r}")
         output_path = self.media_dir / filename
         self._download_file(sound_url, output_path)
         return output_path

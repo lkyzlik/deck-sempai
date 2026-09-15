@@ -19,7 +19,7 @@ class OrdnetIntegration:
 
     def __init__(self):
         self.client = httpx.Client(headers=self.HEADERS)
-        self._html_cache: dict[str, str] = {}
+        self._entry_cache: dict[tuple[str, str | None], dict] = {}
         self._enabled = True
 
 
@@ -33,7 +33,7 @@ class OrdnetIntegration:
 
     def test_connection(self) -> bool:
         try:
-            self.get_html(self.TEST_WORD)
+            self.get_entry(self.TEST_WORD)
             return True
         except OrdnetIntegrationError:
             return False
@@ -52,28 +52,33 @@ class OrdnetIntegration:
         )
 
 
-    def get_html(self, word: str, pos: str = None) -> str:
+    def get_entry(self, word: str, pos: str = None) -> dict:
         if not self._enabled:
             raise OrdnetIntegrationDisabledError("Integration is disabled")
 
-        # A word's page can be looked up several times (e.g. for its part of speech, then its
-        # inflections), so cache the raw page instead of refetching it each time.
-        if word not in self._html_cache:
+        # A word can be looked up several times (e.g. for its part of speech, then its
+        # inflections), so cache the parsed entry instead of refetching and reparsing it each time.
+        cache_key = (word, pos)
+        if cache_key not in self._entry_cache:
             try:
                 resp = self.client.get(self.BASE_URL, params={"query": word}, follow_redirects=True, timeout=15)
                 resp.raise_for_status()
-            except httpx.HTTPError as e:
+            except httpx.HTTPError:
                 raise OrdnetIntegrationError(f"Can't fetch word page")
-            self._html_cache[word] = resp.text
+            article = self._select_entry(resp.text, word, pos)
+            self._entry_cache[cache_key] = self._parse_entry(article)
 
-        entry = self._select_entry(self._html_cache[word], word, pos)
-        return str(entry)
+        return self._entry_cache[cache_key]
 
 
     def _select_entry(self, html: str, word: str, pos: str | None) -> Tag:
         soup = BeautifulSoup(html, "html.parser")
         headwords = soup.find_all("h1", class_="modern-match")
 
+        # A word already in its dictionary form matches a headword exactly (this also narrows
+        # down to homonyms of that same spelling). A verb searched in a conjugated form won't
+        # match any headword directly, but ordnet.dk still resolves the search to that verb's
+        # own page, so fall back to whatever entries it found.
         entries = []
         for headword in headwords:
             # The headword text is followed by a superscript homonym number (e.g. "arbejde <sup>1</sup>"),
@@ -96,6 +101,80 @@ class OrdnetIntegration:
                     return entry
 
         return entries[0]
+
+
+    def _parse_entry(self, entry: Tag) -> dict:
+        return {
+            "headword": self._headword(entry),
+            "pos": self._pos(entry),
+            "gender": self._gender(entry),
+            "inflections": self._inflections(entry),
+            "auxiliary_verb": self._auxiliary_verb(entry),
+            "sound_url": self._sound_url(entry),
+        }
+
+
+    def _headword(self, entry: Tag) -> str | None:
+        headword = entry.find("h1", class_="modern-match")
+        if not headword:
+            return None
+        return (headword.find(string=True, recursive=False) or "").strip() or None
+
+
+    def _pos(self, entry: Tag) -> str | None:
+        pos_span = entry.find(class_="part-of-speech")
+        return pos_span.get("data-pos-key") if pos_span else None
+
+
+    def _gender(self, entry: Tag) -> str | None:
+        pos_span = entry.find(class_="part-of-speech")
+        if not pos_span:
+            return None
+        gender_text = pos_span.parent.get_text(" ", strip=True)
+        if "fælleskøn" in gender_text:
+            return "fælleskøn"
+        if "intetkøn" in gender_text:
+            return "intetkøn"
+        return None
+
+
+    def _inflections(self, entry: Tag) -> list[str]:
+        row = entry.find("div", id="id-boj")
+        button = row.find("button", class_="kilde") if row else None
+        if not button:
+            return []
+        return [form.strip() for form in button.get_text(strip=True).split(",")]
+
+
+    def _auxiliary_verb(self, entry: Tag) -> str:
+        # Verbs are annotated per valency pattern (one per sense) with which auxiliary
+        # verb(s) ("have" and/or "være") form the perfect tense with that pattern. Verbs
+        # that always take "have" aren't annotated at all.
+        auxiliaries = set()
+        for label in entry.find_all("span", class_="stempelSmallNoBorder", string="HJÆLPEVERBUM"):
+            text = label.parent.get_text(" ", strip=True).split("HJÆLPEVERBUM")[-1]
+            if "have" in text:
+                auxiliaries.add("have")
+            if "være" in text:
+                auxiliaries.add("være")
+
+        # Verbs left unannotated always take "have"; verbs whose senses disagree
+        # (e.g. "gå") can take either, so surface both rather than guessing.
+        if not auxiliaries or auxiliaries == {"have"}:
+            return "har"
+        if auxiliaries == {"være"}:
+            return "er"
+        return "er/har"
+
+
+    def _sound_url(self, entry: Tag) -> str | None:
+        lydskrift = entry.find("span", class_="lydskrift")
+        audio = lydskrift.find("audio") if lydskrift else None
+        hidden_structure = audio.find("div", class_="hiddenStructure") if audio else None
+        a = hidden_structure.find("a") if hidden_structure else None
+        if a and a.get("href", "").endswith(".mp3"):
+            return a["href"]
+        return None
 
 
 class OrdnetIntegrationError(Exception):

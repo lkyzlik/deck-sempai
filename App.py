@@ -205,7 +205,7 @@ class App:
         try:
             deck: Deck = self._load_deck()
 
-            note_deck = Deck()
+            note_deck = Deck(deck.name)
             note_deck.meta = deck.meta
 
             for front, back, model, tags in entries:

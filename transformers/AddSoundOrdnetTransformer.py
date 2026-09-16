@@ -1,4 +1,3 @@
-import re
 import time
 
 import httpx
@@ -6,10 +5,12 @@ import httpx
 from pathlib import Path
 
 from Deck import Deck, Field
-from Enums import Side
+from Enums import Language, Side
 from DeckOperator import NoteOpResult, DeckOpResult, DeckOpError
 from ui.Logger import Logger
 from integrations.OrdnetIntegration import OrdnetIntegration, OrdnetIntegrationError, OrdnetIntegrationDisabledError
+from tools.GrammarTool import GrammarTool, GrammarToolError
+from tools.GrammarToolOrdnet import GrammarToolOrdnet
 from transformers.Transformer import Transformer
 
 
@@ -18,6 +19,7 @@ class AddSoundOrdnetTransformer(Transformer):
         super().__init__(logger)
         self.ordnet = ordnet
         self.media_dir = media_dir
+        self.grammar = GrammarTool(Language.DANISH)
 
 
     def _download_file(self, url: str, output_path: Path) -> None:
@@ -34,8 +36,8 @@ class AddSoundOrdnetTransformer(Transformer):
             f.write(resp.content)
 
 
-    def _download_sound(self, word: str, filename: str) -> Path:
-        sound_url = self.ordnet.get_entry(word)["sound_url"]
+    def _download_sound(self, word: str, pos: str | None, filename: str) -> Path:
+        sound_url = self.ordnet.get_entry(word, pos=GrammarToolOrdnet.POS_KEY_MAP.get(pos))["sound_url"]
         if not sound_url:
             raise OrdnetIntegrationError(f"Can't find sound URL for {word!r}")
         output_path = self.media_dir / filename
@@ -44,21 +46,8 @@ class AddSoundOrdnetTransformer(Transformer):
 
 
     def _extract_word(self, text: str) -> str | None:
-        # Remove any text in braces (), [], <>, {}
-        text = re.sub(r'[\(\[\{<][^)\]\}>]*[\)\]\}>]', '', text)
-        # Remove Danish articles and infinitive markers
-        text = re.sub(r'^(en|et|den|det|at)\s+', '', text, flags=re.IGNORECASE)
-        # Remove numbers
-        text = re.sub(r'\d+', '', text)
-        # Remove punctuation
-        text = re.sub(r'[^\w\s]', '', text)
-        # Remove whitespace around
-        text = text.strip()
-        # Fail if there is more than one word left
-        if len(text.split()) != 1:
-            return None
-        # Return the cleaned word
-        return text.split()[0]
+        word = self.grammar.extract_word(text)["word"]
+        return word if word and len(word.split()) == 1 else None
 
 
     def _transform_field(self, field: Field, deck_name: str, is_last: bool) -> NoteOpResult:
@@ -66,13 +55,18 @@ class AddSoundOrdnetTransformer(Transformer):
             self._warning(f"{field.get_text_oneline()!r} already has sound")
             return NoteOpResult(success=False)
 
+        try:
+            pos = self.grammar.pos(field.text)
+        except GrammarToolError:
+            pos = None
+
         word = self._extract_word(field.text)
         if not word:
             self._warning(f"Can't extract word from {field.get_text_oneline()!r}")
             return NoteOpResult(success=False)
 
         try:
-            sound_path = self._download_sound(word, f"ordnet_{deck_name}_{word}.mp3")
+            sound_path = self._download_sound(word, pos, f"ordnet_{deck_name}_{word}.mp3")
             field.add_sound(sound_path.name)
         except OrdnetIntegrationDisabledError as e:
             raise DeckOpError(self, str(e)) from e

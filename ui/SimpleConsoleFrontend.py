@@ -86,15 +86,17 @@ class SimpleConsoleFrontend:
             self.show_deck_name(deck.name)
             self.show_deck_metadata(deck.meta)
 
-        headers = ["#", "Front", "Back"]
+        notes = deck.notes[:max_rows] if max_rows else deck.notes
+        show_index = len(notes) > 1
+
+        headers = ["#", "Front", "Back"] if show_index else ["Front", "Back"]
         if result:
             headers.append(result.op_title)
 
-        notes = deck.notes[:max_rows] if max_rows else deck.notes
-
         rows = []
         for i, note in enumerate(notes):
-            row = [str(i + 1), self._field_to_str(note.front), self._field_to_str(note.back)]
+            row = [str(i + 1)] if show_index else []
+            row += [self._field_to_str(note.front), self._field_to_str(note.back)]
             if result:
                 note_result = result.note_results[i]
                 row.append("OK" if note_result.success else "FAIL")
@@ -120,6 +122,26 @@ class SimpleConsoleFrontend:
         for row in rows:
             print(format_row(row))
         print(separator)
+
+
+    def preview(self, prompt: str, deck: Deck, result: DeckOpResult = None) -> str:
+        self.show_deck(deck, result, include_metadata=False)
+        return self.input(prompt)
+
+
+    def input(self, prompt: str) -> str:
+        return input(prompt)
+
+
+    def input_multiline(self, prompt: str) -> list[str]:
+        self.print(prompt)
+        lines = []
+        while True:
+            line = self.input("> ").strip()
+            if not line:
+                break
+            lines.append(line)
+        return lines
 
 
     def show_deck_metadata(self, meta: DeckMeta):

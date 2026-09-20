@@ -70,7 +70,7 @@ def add(front: Optional[str] = typer.Argument(None, help="Front text of the new 
 
     If called with neither FRONT nor --back, enters an interactive mode where notes can
     be entered one per line as 'FRONT; BACK; MODEL; TAGS' (FRONT or BACK required),
-    until 'q' is entered.
+    until an empty line is entered.
     """
     app.add(front, back, model, tags)
 

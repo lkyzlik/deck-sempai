@@ -119,13 +119,6 @@ class App:
         self.exporters[self.config.app.deck_storage].export_deck(deck)
 
 
-    def _preview(self, title: str, deck: Deck, results: DeckOpResult = None) -> bool:
-        self.frontend.print(title)
-        self.frontend.show_deck(deck, results, include_metadata=False)
-        response = input("Do you want to save changes? (y/n)\n")
-        return response.lower() == "y"
-
-
     def _clear_temp_files(self):
         if self.media_dir.exists():
             for file in self.media_dir.glob("*"):
@@ -176,7 +169,7 @@ class App:
 
         try:
             imported: Deck = self.importers[importer].import_deck(**kwargs)
-            if self._preview("Import preview", imported):
+            if self.frontend.preview("Do you want to add this? (y - yes, n - no)\n", imported).lower() == "y":
                 deck: Deck = self._load_deck() + imported
                 self._save_deck(deck)
 
@@ -234,7 +227,7 @@ class App:
                 except DeckOpError as e:
                     self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
 
-            if self._preview("Preview:", note_deck):
+            if self.frontend.preview("Do you want to add this? (y - yes, n - no)\n", note_deck).lower() == "y":
                 self._save_deck(deck + note_deck)
 
         except DeckOpError as e:
@@ -249,15 +242,10 @@ class App:
             self._add_notes([(front, back, model, tags)])
             return
 
-        self.frontend.print("Enter notes as 'FRONT; BACK; MODEL; TAGS' (FRONT or BACK required). Enter 'q' after last note.")
-        entries = []
-        while True:
-            line = input("> ").strip()
-            if line.lower() == "q":
-                break
-            if not line:
-                continue
-            entries.append(self._parse_add_line(line))
+        lines = self.frontend.input_multiline(
+            "Enter notes as 'FRONT; BACK; MODEL; TAGS' (FRONT or BACK required). Press Enter on an empty line to finish."
+        )
+        entries = [self._parse_add_line(line) for line in lines]
 
         self._add_notes(entries)
 
@@ -280,7 +268,7 @@ class App:
         try:
             deck: Deck = self._load_deck()
             result: DeckOpResult = self.transformers[transformer].transform_deck(deck, **kwargs)
-            if self._preview("Changes preview", deck, result):
+            if self.frontend.preview("Do you want to save changes? (y - yes, n - no)\n", deck, result).lower() == "y":
                 self._save_deck(deck)
 
         except DeckOpError as e:

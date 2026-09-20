@@ -1,13 +1,95 @@
+import time
+from typing import Optional
+
 from rich.console import Console
 from rich.table import Table
 from rich import box
+from rich.measure import Measurement
 from rich.text import Text
-from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
+from rich.progress import MofNCompleteColumn, Progress, ProgressColumn, TextColumn
 
 from Deck import Deck, DeckMeta, Field
 from DeckOperator import DeckOpResult, DeckOpError
 
 from ui.Logger import LoggerProgress
+
+
+class _StyledMofNCompleteColumn(MofNCompleteColumn):
+    def __init__(self, style: str, **kwargs):
+        self.style = style
+        super().__init__(**kwargs)
+
+    def render(self, task) -> Text:
+        if task.total == 1:
+            return Text("")
+        text = super().render(task)
+        text.style = self.style
+        return text
+
+
+class _FlowerBar:
+    # A bud opening into full bloom, stage by stage.
+    STAGES = ["·", "⋆", "✦", "✳", "❀"]
+
+    def __init__(self, total: Optional[float], completed: float, style: str, bud_style: str,
+                 stage_char: Optional[str], width: Optional[int] = None):
+        self.total = total
+        self.completed = completed
+        self.style = style
+        self.bud_style = bud_style
+        self.stage_char = stage_char
+        self.width = width
+
+    def __rich_console__(self, console, options):
+        width = min(self.width, options.max_width) if self.width is not None else options.max_width
+
+        bloomed_count = int(width * self.completed / self.total) if self.total else 0
+        remaining = width - bloomed_count
+
+        text = Text()
+        if bloomed_count:
+            text.append(self.STAGES[-1] * bloomed_count, style=self.style)
+        if remaining and self.stage_char is not None:
+            text.append(self.stage_char, style=self.style)
+            remaining -= 1
+        if remaining:
+            text.append(self.STAGES[0] * remaining, style=self.bud_style)
+        yield text
+
+    def __rich_measure__(self, console, options):
+        if self.width is None:
+            return Measurement(4, options.max_width)
+        # One flower per step, capped to whatever actually fits on the line.
+        max_width = min(self.width, options.max_width)
+        return Measurement(min(1, max_width), max_width)
+
+
+class _FlowerBarColumn(ProgressColumn):
+    STAGES_PER_SECOND = 4
+
+    def __init__(self, style: str, width: Optional[int] = None, **kwargs):
+        self.width = width
+        self.style = style
+        self.bud_style = "dim " + style
+        super().__init__(**kwargs)
+
+    def render(self, task) -> _FlowerBar:
+        stage_char = None
+        if task.total and not task.finished:
+            stage = int(time.monotonic() * self.STAGES_PER_SECOND) % len(_FlowerBar.STAGES)
+            stage_char = _FlowerBar.STAGES[stage]
+
+        # One flower per step by default, unless an explicit width was set.
+        width = self.width if self.width is not None else (int(task.total) if task.total else None)
+
+        return _FlowerBar(
+            total=task.total,
+            completed=task.completed,
+            style=self.style,
+            bud_style=self.bud_style,
+            stage_char=stage_char,
+            width=width,
+        )
 
 
 class RichConsoleFrontend:
@@ -31,7 +113,7 @@ class RichConsoleFrontend:
 
 
     def print(self, message: str):
-        self.console.print(message)
+        self.console.print(message, style=self.COLOR_PRIMARY)
 
 
     def info(self, message: str):
@@ -57,9 +139,9 @@ class RichConsoleFrontend:
 
     def progress(self) -> LoggerProgress:
         return Progress(
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            MofNCompleteColumn(),
+            TextColumn("{task.description}", style=self.COLOR_PRIMARY),
+            _FlowerBarColumn(style=self.COLOR_PRIMARY),
+            _StyledMofNCompleteColumn(style=self.COLOR_PRIMARY),
             console=self.console
         )
 
@@ -76,6 +158,9 @@ class RichConsoleFrontend:
             self.show_deck_name(deck.name)
             self.show_deck_metadata(deck.meta)
 
+        notes = deck.notes[:max_rows] if max_rows else deck.notes
+        show_index = len(notes) > 1
+
         table = Table(
             show_header=True,
             box=box.DOUBLE_EDGE,
@@ -83,17 +168,18 @@ class RichConsoleFrontend:
             header_style=self.COLOR_PRIMARY + " bold",
             row_styles=[self.COLOR_PRIMARY, self.COLOR_SECONDARY],
         )
-        table.add_column("#")
+        if show_index:
+            table.add_column("#")
         table.add_column("☖ Front")
         table.add_column("☗ Back")
         if result:
             table.add_column(result.op_title)
 
-        notes = deck.notes[:max_rows] if max_rows else deck.notes
-
         for i, note in enumerate(notes):
-            row = [
-                str(i + 1),
+            row = []
+            if show_index:
+                row.append(str(i + 1))
+            row += [
                 self._field_to_rich(note.front),
                 self._field_to_rich(note.back),
             ]
@@ -104,6 +190,27 @@ class RichConsoleFrontend:
             table.add_row(*row)
 
         self.console.print(table)
+
+
+    def preview(self, prompt: str, deck: Deck, result: DeckOpResult = None) -> str:
+        self.show_deck(deck, result, include_metadata=False)
+        return self.input(prompt)
+
+
+    def input(self, prompt: str) -> str:
+        self.console.print(prompt, style="italic " + self.COLOR_PRIMARY, end="")
+        return input()
+
+
+    def input_multiline(self, prompt: str) -> list[str]:
+        self.console.print(prompt, style="italic " + self.COLOR_PRIMARY)
+        lines = []
+        while True:
+            line = self.input("> ").strip()
+            if not line:
+                break
+            lines.append(line)
+        return lines
 
 
     def show_deck_metadata(self, meta: DeckMeta):

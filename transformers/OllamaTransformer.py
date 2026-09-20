@@ -7,7 +7,7 @@ from DeckOperator import NoteOpResult, DeckOpResult, DeckOpError
 
 
 class OllamaTransformer(Transformer):
-    def __init__(self, logger: Logger, ollama: OllamaIntegration, prog_title: str = "Processing..."):
+    def __init__(self, logger: Logger, ollama: OllamaIntegration, prog_title: str = "Processing"):
         super().__init__(logger)
         self.ollama = ollama
         self.prog_title = prog_title

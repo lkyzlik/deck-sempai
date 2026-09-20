@@ -84,7 +84,7 @@ class AddSoundOrdnetTransformer(Transformer):
     def _transform_deck(self, deck: Deck, side: Side) -> DeckOpResult:
         results = []
         with self.logger.progress() as prog:
-            task = prog.add_task(f"Getting sounds...", total=len(deck.notes))
+            task = prog.add_task(f"Getting sounds", total=len(deck.notes))
 
             for note in deck.notes:
                 is_last = note == deck.notes[-1]

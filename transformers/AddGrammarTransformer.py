@@ -94,7 +94,7 @@ class AddGrammarTransformer(Transformer):
 
     def _transform_deck(self, deck: Deck, side: Side, grammar_rules: list[GrammarRule]) -> DeckOpResult:
         with self.logger.progress() as prog:
-            task = prog.add_task("Adding grammar help...", total=len(deck.notes))
+            task = prog.add_task("Adding grammar help", total=len(deck.notes))
 
             results: list[NoteOpResult] = []
             for note in deck.notes:

@@ -31,7 +31,7 @@ class TranslateTransformer(Transformer):
 
     def _transform_deck(self, deck: Deck, side_from: Side, side_to: Side) -> DeckOpResult:
         with self.logger.progress() as prog:
-            task = prog.add_task("Translating...", total=len(deck.notes))
+            task = prog.add_task("Translating", total=len(deck.notes))
 
             results: list[NoteOpResult] = []
             for note in deck.notes:

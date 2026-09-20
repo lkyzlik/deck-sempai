@@ -72,6 +72,14 @@ class AnkiIntegration:
         return self._invoke("deckNames")
 
 
+    def create_deck(self, deck_name: str) -> None:
+        self._invoke("createDeck", deck=deck_name)
+
+
+    def delete_deck(self, deck_name: str) -> None:
+        self._invoke("deleteDecks", decks=[deck_name], cardsToo=True)
+
+
     def find_notes(self, query: str) -> list[int]:
         return self._invoke("findNotes", query=query)
 

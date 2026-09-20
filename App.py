@@ -9,8 +9,10 @@ from rich.text import Text
 from Config import Config
 from Deck import Deck, DeckMeta
 from DeckOperator import DeckOpResult, DeckOpError
+from Enums import Language
 
 from exporters.Exporter import Exporter
+from exporters.StorageExporter import StorageExporter
 from exporters.AnkiExporter import AnkiExporter
 
 from importers.Importer import Importer
@@ -44,6 +46,9 @@ class AppState:
 
 
 class App:
+    _CREATE_NEW_DECK_OPTION = "Create new"
+    _CURRENT_DECK_SUFFIX = " (current)"
+
     def __init__(self):
         self.config = Config.load()
         self.state = AppState()
@@ -125,13 +130,158 @@ class App:
                 file.unlink()
 
 
+    def _pick_deck(self, exporter: StorageExporter, prompt: str, extra_options: list[str] = ()) -> str | None:
+        try:
+            names = sorted(exporter.get_decks())
+        except DeckOpError as e:
+            self.frontend.error(str(e))
+            return None
+
+        options = [n + (self._CURRENT_DECK_SUFFIX if n == self.state.current_deck else "") for n in names]
+        options += list(extra_options)
+
+        choice = self.frontend.choice(prompt, options)
+
+        if choice in extra_options:
+            return choice
+
+        if choice.endswith(self._CURRENT_DECK_SUFFIX):
+            choice = choice[:-len(self._CURRENT_DECK_SUFFIX)]
+
+        if choice not in names:
+            self.frontend.error(f"No such deck: '{choice}'")
+            return None
+
+        return choice
+
+
+    def _deck_interactive(self) -> str | None:
+        exporter = self._storage_exporter()
+        if not exporter:
+            return None
+
+        choice = self._pick_deck(exporter, "", [self._CREATE_NEW_DECK_OPTION])
+        if choice is None:
+            return None
+
+        if choice == self._CREATE_NEW_DECK_OPTION:
+            self.create()
+            return None
+
+        return choice
+
+
     def deck(self, name: str = None):
-        if name:
-            self._load_state()
-            self.state.current_deck = name
-            self._save_state()
+        if not name:
+            name = self._deck_interactive()
+            if not name:
+                return
+
+        self._load_state()
+        self.state.current_deck = name
+        self._save_state()
 
         self.frontend.show_deck_name(self.state.current_deck)
+
+
+    def _storage_exporter(self) -> StorageExporter | None:
+        exporter = self.exporters[self.config.app.deck_storage]
+        if not isinstance(exporter, StorageExporter):
+            self.frontend.error(f"Exporter '{self.config.app.deck_storage}' does not support managing decks.")
+            return None
+        return exporter
+
+
+    def _prompt_language(self, prompt: str) -> Language:
+        languages = [l for l in Language if l != Language.NONE]
+        options = [f"{l.value} ({l.short()})" for l in languages]
+        while True:
+            answer = self.frontend.choice(prompt, options)
+            if answer in options:
+                return languages[options.index(answer)]
+            try:
+                return Language.from_str(answer)
+            except ValueError:
+                self.frontend.error(f"Unknown language '{answer}'.")
+
+
+    def _create_interactive(self) -> tuple[str, dict] | None:
+        name = self.frontend.input("Deck's name:\n").strip()
+
+        metadata = {}
+        is_language_deck = self.frontend.input("Is it a deck for language learning? (y - yes, n - no)\n").lower() == "y"
+        if is_language_deck:
+            lang_front = self._prompt_language("Front side language:\n")
+            lang_back = self._prompt_language("Back side language:\n")
+            metadata = {"lang_front": str(lang_front), "lang_back": str(lang_back)}
+
+        deck = Deck(name)
+        deck.meta.update(metadata)
+        self.frontend.show_deck_name(deck.name)
+        self.frontend.show_deck_metadata(deck.meta)
+
+        if self.frontend.input("Do you want to create this deck? (y - yes, n - no)\n").lower() != "y":
+            return None
+
+        return name, metadata
+
+
+    def create(self, name: str = None, **metadata):
+        if not name:
+            result = self._create_interactive()
+            if not result:
+                return
+            name, metadata = result
+
+        if not name:
+            self.frontend.error("Missing argument: name")
+            return
+
+        exporter = self._storage_exporter()
+        if not exporter:
+            return
+
+        try:
+            exporter.create_deck(name)
+            if metadata:
+                deck = Deck(name)
+                deck.meta.update(metadata)
+                exporter.export_deck(deck)
+        except DeckOpError as e:
+            self.frontend.error(str(e))
+            return
+
+        self.state.current_deck = name
+        self._save_state()
+        self.frontend.show_deck_name(self.state.current_deck)
+        if metadata:
+            self.frontend.show_deck_metadata(deck.meta)
+
+
+    def delete(self, name: str = None):
+        exporter = self._storage_exporter()
+        if not exporter:
+            return
+
+        if not name:
+            name = self._pick_deck(exporter, "")
+            if not name:
+                return
+
+        if self.frontend.input(f"Delete deck '{name}' and all its notes? This can't be undone. (y - yes, n - no)\n").lower() != "y":
+            return
+
+        try:
+            exporter.delete_deck(name)
+        except DeckOpError as e:
+            self.frontend.error(str(e))
+            return
+
+        if name == self.state.current_deck:
+            self.state.current_deck = AppState().current_deck
+            self._save_state()
+
+        self.frontend.info(f"Deleted deck '{name}'")
 
 
     def meta(self, **kwargs):

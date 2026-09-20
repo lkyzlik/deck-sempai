@@ -24,3 +24,6 @@ class Frontend(Logger, Protocol):
 
     def input_multiline(self, prompt: str) -> list[str]:
         ...
+
+    def choice(self, prompt: str, options: list[str]) -> str:
+        ...

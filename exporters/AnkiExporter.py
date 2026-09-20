@@ -4,11 +4,11 @@ from Deck import Deck, Note
 from DeckOperator import DeckOpError, NoteOpResult, DeckOpResult
 
 from ui.Logger import Logger
-from exporters.Exporter import Exporter
+from exporters.StorageExporter import StorageExporter
 from integrations.AnkiIntegration import AnkiIntegration, AnkiIntegrationError, AnkiIntegrationDisabledError
 
 
-class AnkiExporter(Exporter):
+class AnkiExporter(StorageExporter):
     def __init__(self,  logger: Logger, ac: AnkiIntegration, media_dir: Path):
         super().__init__(logger)
         self.ac = ac
@@ -81,6 +81,33 @@ class AnkiExporter(Exporter):
             return NoteOpResult(False)
 
         return NoteOpResult(True)
+
+
+    def create_deck(self, name: str) -> None:
+        try:
+            self.ac.create_deck(name)
+        except AnkiIntegrationDisabledError as e:
+            raise DeckOpError(self, str(e)) from e
+        except AnkiIntegrationError as e:
+            raise DeckOpError(self, str(e))
+
+
+    def delete_deck(self, name: str) -> None:
+        try:
+            self.ac.delete_deck(name)
+        except AnkiIntegrationDisabledError as e:
+            raise DeckOpError(self, str(e)) from e
+        except AnkiIntegrationError as e:
+            raise DeckOpError(self, str(e))
+
+
+    def get_decks(self) -> list[str]:
+        try:
+            return self.ac.deck_names()
+        except AnkiIntegrationDisabledError as e:
+            raise DeckOpError(self, str(e)) from e
+        except AnkiIntegrationError as e:
+            raise DeckOpError(self, str(e))
 
 
     def export_deck(self, deck: Deck) -> DeckOpResult:

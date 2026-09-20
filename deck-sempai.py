@@ -31,11 +31,34 @@ def meta(ctx: typer.Context):
 
 
 @cli.command()
-def deck(name: Optional[str] = typer.Argument(None, help="Name of the deck to switch to. If omitted, shows the current deck.")):
+def deck(name: Optional[str] = typer.Argument(None, help="Name of the deck to switch to. If omitted, runs an interactive picker.")):
     """
-    Set the current deck to work with. If no NAME is provided, shows the current deck.
+    Set the current deck to work with. If no NAME is provided, shows a list of all decks to
+    choose from (the current one marked), with a 'Create new' option to create one instead.
     """
     app.deck(name)
+
+
+@cli.command(context_settings=CTX_SETTINGS)
+def create(ctx: typer.Context, name: Optional[str] = typer.Argument(None, help="Name of the new deck to create. If omitted, runs an interactive setup.")):
+    """
+    Create a new deck with the given NAME and switch to it. Additional metadata can be
+    passed as space-separated key=value pairs, e.g. 'create MyDeck lang_front=da lang_back=en'.
+
+    If NAME is omitted, runs an interactive setup that asks for the deck's name and,
+    for language-learning decks, the languages on the front/back sides.
+    """
+    app.create(name, **get_kwargs(ctx))
+
+
+@cli.command()
+def delete(name: Optional[str] = typer.Argument(None, help="Name of the deck to delete. If omitted, runs an interactive picker.")):
+    """
+    Delete the deck with the given NAME, along with all its notes. If NAME is omitted,
+    shows a list of all decks to choose from (the current one marked). Either way, asks
+    for confirmation before deleting.
+    """
+    app.delete(name)
 
 
 @cli.command(context_settings=CTX_SETTINGS)

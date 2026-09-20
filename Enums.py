@@ -33,10 +33,10 @@ class AliasedStrEnum(StrEnum):
 class Language(AliasedStrEnum):
     NONE = "none", "x"
     DANISH = "Danish", "da-DK", "da"
-    ENGLISH_GB = "English (British)", "en-GB", "English", "en"
-    ENGLISH_US = "English (American)", "en-US"
-    GERMAN_DE = "German (Germany)", "de-DE", "German", "de"
-    SPANISH_ES = "Spanish (Spain)", "es-ES", "Spanish", "es"
+    ENGLISH_GB = "English - British", "en-GB", "English", "en"
+    ENGLISH_US = "English - American", "en-US"
+    GERMAN_DE = "German - Germany", "de-DE", "German", "de"
+    SPANISH_ES = "Spanish - Spain", "es-ES", "Spanish", "es"
 
 
 class Side(AliasedStrEnum):

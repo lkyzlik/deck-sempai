@@ -1,7 +1,9 @@
+import sys
 import time
 from typing import Optional
 
-from rich.console import Console
+from rich.console import Console, Group
+from rich.live import Live
 from rich.table import Table
 from rich import box
 from rich.measure import Measurement
@@ -12,6 +14,18 @@ from Deck import Deck, DeckMeta, Field
 from DeckOperator import DeckOpResult, DeckOpError
 
 from ui.Logger import LoggerProgress
+
+try:
+    import termios
+    import tty
+except ImportError:
+    termios = None
+    tty = None
+
+try:
+    import msvcrt
+except ImportError:
+    msvcrt = None
 
 
 class _StyledMofNCompleteColumn(MofNCompleteColumn):
@@ -95,7 +109,7 @@ class _FlowerBarColumn(ProgressColumn):
 class RichConsoleFrontend:
     COLOR_PRIMARY = "#fae9c8"
     COLOR_SECONDARY = "#a8813a"
-    COLOR_ACCENT = "#ca3333"
+    COLOR_ACCENT = "#a14d33"
     COLOR_INFO = "blue"
     COLOR_WARNING = "yellow"
     COLOR_ERROR = "red"
@@ -211,6 +225,102 @@ class RichConsoleFrontend:
                 break
             lines.append(line)
         return lines
+
+
+    def _read_key(self) -> Optional[str]:
+        """Reads a single keypress, returning "up"/"down"/"enter", a single printable
+        character, or None for anything else (ignored). Raises KeyboardInterrupt on
+        Ctrl+C, since raw mode otherwise swallows it instead of raising SIGINT."""
+        if msvcrt:
+            ch = msvcrt.getch()
+            if ch == b"\x03":
+                raise KeyboardInterrupt
+            if ch in (b"\x00", b"\xe0"):
+                return {b"H": "up", b"P": "down"}.get(msvcrt.getch())
+            if ch in (b"\r", b"\n"):
+                return "enter"
+            try:
+                decoded = ch.decode()
+            except UnicodeDecodeError:
+                return None
+            return decoded if decoded.isprintable() else None
+
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            ch = sys.stdin.read(1)
+            if ch == "\x03":
+                raise KeyboardInterrupt
+            if ch == "\x1b":
+                if sys.stdin.read(1) != "[":
+                    return None
+                return {"A": "up", "B": "down"}.get(sys.stdin.read(1))
+            if ch in ("\r", "\n"):
+                return "enter"
+            return ch if ch.isprintable() else None
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+
+    def _render_choice(self, options: list[str], selected: int) -> Group:
+        lines = []
+        for i, option in enumerate(options, 1):
+            text = Text()
+            if i - 1 == selected:
+                text.append("❯ ", style=self.COLOR_ACCENT + " bold")
+                text.append(f"{i}. ", style=self.COLOR_ACCENT + " bold")
+                text.append(option, style=self.COLOR_ACCENT + " bold")
+            else:
+                text.append("  ")
+                text.append(f"{i}. ", style=self.COLOR_SECONDARY + " bold")
+                text.append(option, style=self.COLOR_SECONDARY)
+            lines.append(text)
+
+        return Group(*lines)
+
+
+    def _choice_by_input(self, options: list[str]) -> str:
+        for i, option in enumerate(options, 1):
+            text = Text()
+            text.append(f"{i}. ", style=self.COLOR_SECONDARY + " bold")
+            text.append(option, style=self.COLOR_SECONDARY)
+            self.console.print(text)
+
+        while True:
+            answer = self.input("> ").strip()
+            if answer.isdigit() and 1 <= int(answer) <= len(options):
+                return options[int(answer) - 1]
+            self.error(f"Enter a number between 1 and {len(options)}.")
+
+
+    def choice(self, prompt: str, options: list[str]) -> str:
+        if prompt:
+            self.console.print(prompt, style="italic " + self.COLOR_PRIMARY)
+
+        can_read_keys = msvcrt or (termios and tty)
+        if not sys.stdin.isatty() or not can_read_keys:
+            return self._choice_by_input(options)
+
+        selected = 0
+        with Live(self._render_choice(options, selected), console=self.console, auto_refresh=False, transient=False) as live:
+            while True:
+                key = self._read_key()
+                if key == "up":
+                    selected = (selected - 1) % len(options)
+                elif key == "down":
+                    selected = (selected + 1) % len(options)
+                elif key == "enter":
+                    break
+                elif key is not None and key.isdigit() and key != "0" and int(key) <= len(options):
+                    selected = int(key) - 1
+                    break
+                else:
+                    continue
+                live.update(self._render_choice(options, selected))
+                live.refresh()
+
+        return options[selected]
 
 
     def show_deck_metadata(self, meta: DeckMeta):

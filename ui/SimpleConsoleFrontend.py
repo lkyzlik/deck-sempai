@@ -144,6 +144,18 @@ class SimpleConsoleFrontend:
         return lines
 
 
+    def choice(self, prompt: str, options: list[str]) -> str:
+        if prompt:
+            self.print(prompt)
+        for i, option in enumerate(options, 1):
+            print(f"{i}. {option}")
+
+        answer = self.input("> ").strip()
+        if answer.isdigit() and 1 <= int(answer) <= len(options):
+            return options[int(answer) - 1]
+        return answer
+
+
     def show_deck_metadata(self, meta: DeckMeta):
         for key, value in meta.to_dict().items():
             print(f"{key}: {value}")

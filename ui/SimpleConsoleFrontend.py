@@ -58,6 +58,11 @@ class SimpleConsoleFrontend:
         print(message)
 
 
+    def status_bar(self, version: str, current_deck: Deck):
+        print(f"Deck Sempai - v{version} - Current deck: {current_deck.name} ({len(current_deck.notes)} cards)")
+        print()
+
+
     def info(self, message: str):
         print(f"Info: {message}")
 
@@ -144,7 +149,7 @@ class SimpleConsoleFrontend:
         return lines
 
 
-    def choice(self, prompt: str, options: list[str]) -> str:
+    def choice(self, prompt: str, options: list[str], transient: bool = False) -> str:
         if prompt:
             self.print(prompt)
         for i, option in enumerate(options, 1):
@@ -154,6 +159,20 @@ class SimpleConsoleFrontend:
         if answer.isdigit() and 1 <= int(answer) <= len(options):
             return options[int(answer) - 1]
         return answer
+
+
+    def multi_choice(self, prompt: str, options: list[str], transient: bool = False) -> list[str]:
+        if prompt:
+            self.print(prompt)
+        for i, option in enumerate(options, 1):
+            print(f"{i}. {option}")
+
+        while True:
+            answer = self.input("> (comma-separated numbers) ").strip()
+            indices = [a.strip() for a in answer.split(",") if a.strip()]
+            if indices and all(a.isdigit() and 1 <= int(a) <= len(options) for a in indices):
+                return [options[int(a) - 1] for a in dict.fromkeys(indices)]
+            self.error(f"Enter one or more numbers between 1 and {len(options)}, separated by commas.")
 
 
     def show_deck_metadata(self, meta: DeckMeta):

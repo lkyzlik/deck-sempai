@@ -7,6 +7,9 @@ from ui.Logger import Logger
 
 
 class Frontend(Logger, Protocol):
+    def status_bar(self, version: str, current_deck: Deck):
+        ...
+
     def show_deck(self, deck: Deck, result: DeckOpResult = None, include_metadata: bool = True, **kwargs):
         ...
 
@@ -25,5 +28,8 @@ class Frontend(Logger, Protocol):
     def input_multiline(self, prompt: str) -> list[str]:
         ...
 
-    def choice(self, prompt: str, options: list[str]) -> str:
+    def choice(self, prompt: str, options: list[str], transient: bool = False) -> str:
+        ...
+
+    def multi_choice(self, prompt: str, options: list[str], transient: bool = False) -> list[str]:
         ...

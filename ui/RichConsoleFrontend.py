@@ -110,6 +110,7 @@ class RichConsoleFrontend:
     COLOR_PRIMARY = "#fae9c8"
     COLOR_SECONDARY = "#a8813a"
     COLOR_ACCENT = "#a14d33"
+    COLOR_QUIET = "grey50"
     COLOR_INFO = "blue"
     COLOR_WARNING = "yellow"
     COLOR_ERROR = "red"
@@ -128,6 +129,16 @@ class RichConsoleFrontend:
 
     def print(self, message: str):
         self.console.print(message, style=self.COLOR_PRIMARY)
+
+
+    def status_bar(self, version: str, current_deck: Deck):
+        text = Text()
+        text.append("Deck Sempai", style=self.COLOR_PRIMARY + " bold")
+        text.append(f" · v{version} · Current deck: ", style=self.COLOR_PRIMARY)
+        text.append(current_deck.name, style=self.COLOR_PRIMARY + " bold")
+        text.append(f" ({len(current_deck.notes)} cards)", style=self.COLOR_PRIMARY)
+        self.console.print(text)
+        self.console.print()
 
 
     def info(self, message: str):
@@ -263,21 +274,25 @@ class RichConsoleFrontend:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
-    def _render_choice(self, options: list[str], selected: int) -> Group:
+    def _render_choice(self, options: list[str], selected: int, show_hint: bool = True) -> Group:
         lines = []
         for i, option in enumerate(options, 1):
             text = Text()
             if i - 1 == selected:
-                text.append("❯ ", style=self.COLOR_ACCENT + " bold")
+                text.append("● ", style=self.COLOR_ACCENT + " bold")
                 text.append(f"{i}. ", style=self.COLOR_ACCENT + " bold")
                 text.append(option, style=self.COLOR_ACCENT + " bold")
             else:
-                text.append("  ")
+                text.append("○ ", style=self.COLOR_SECONDARY)
                 text.append(f"{i}. ", style=self.COLOR_SECONDARY + " bold")
                 text.append(option, style=self.COLOR_SECONDARY)
             lines.append(text)
 
-        return Group(*lines)
+        if not show_hint:
+            return Group(*lines)
+
+        hint = Text("↑/↓: navigate · Enter: select · Ctrl+C: exit", style="italic " + self.COLOR_QUIET)
+        return Group(*lines, hint)
 
 
     def _choice_by_input(self, options: list[str]) -> str:
@@ -294,7 +309,7 @@ class RichConsoleFrontend:
             self.error(f"Enter a number between 1 and {len(options)}.")
 
 
-    def choice(self, prompt: str, options: list[str]) -> str:
+    def choice(self, prompt: str, options: list[str], transient: bool = False) -> str:
         if prompt:
             self.console.print(prompt, style="italic " + self.COLOR_PRIMARY)
 
@@ -303,7 +318,7 @@ class RichConsoleFrontend:
             return self._choice_by_input(options)
 
         selected = 0
-        with Live(self._render_choice(options, selected), console=self.console, auto_refresh=False, transient=False) as live:
+        with Live(self._render_choice(options, selected), console=self.console, auto_refresh=False, transient=transient) as live:
             while True:
                 key = self._read_key()
                 if key == "up":
@@ -320,13 +335,94 @@ class RichConsoleFrontend:
                 live.update(self._render_choice(options, selected))
                 live.refresh()
 
+            if not transient:
+                live.update(self._render_choice(options, selected, show_hint=False))
+                live.refresh()
+
         return options[selected]
 
 
-    def show_deck_metadata(self, meta: DeckMeta):
-        for key, value in meta.to_dict().items():
+    def _render_multi_choice(self, options: list[str], selected: int, checked: set[int], show_hint: bool = True) -> Group:
+        lines = []
+        for i, option in enumerate(options, 1):
+            idx = i - 1
+            box = "■ " if idx in checked else "□ "
             text = Text()
-            text.append(f"{key}: ", style=self.COLOR_SECONDARY + " bold")
+            if idx == selected:
+                text.append(box, style=self.COLOR_ACCENT + " bold")
+                text.append(f"{i}. ", style=self.COLOR_ACCENT + " bold")
+                text.append(option, style=self.COLOR_ACCENT + " bold")
+            else:
+                text.append(box, style=self.COLOR_SECONDARY)
+                text.append(f"{i}. ", style=self.COLOR_SECONDARY + " bold")
+                text.append(option, style=self.COLOR_SECONDARY)
+            lines.append(text)
+
+        if not show_hint:
+            return Group(*lines)
+
+        hint = Text("↑/↓: navigate · Space: toggle · Enter: confirm · Ctrl+C: exit", style="italic " + self.COLOR_QUIET)
+        return Group(*lines, hint)
+
+
+    def _multi_choice_by_input(self, options: list[str]) -> list[str]:
+        for i, option in enumerate(options, 1):
+            text = Text()
+            text.append(f"{i}. ", style=self.COLOR_SECONDARY + " bold")
+            text.append(option, style=self.COLOR_SECONDARY)
+            self.console.print(text)
+
+        while True:
+            answer = self.input("> (comma-separated numbers) ").strip()
+            indices = [a.strip() for a in answer.split(",") if a.strip()]
+            if indices and all(a.isdigit() and 1 <= int(a) <= len(options) for a in indices):
+                return [options[int(a) - 1] for a in dict.fromkeys(indices)]
+            self.error(f"Enter one or more numbers between 1 and {len(options)}, separated by commas.")
+
+
+    def multi_choice(self, prompt: str, options: list[str], transient: bool = False) -> list[str]:
+        if prompt:
+            self.console.print(prompt, style="italic " + self.COLOR_PRIMARY)
+
+        can_read_keys = msvcrt or (termios and tty)
+        if not sys.stdin.isatty() or not can_read_keys:
+            return self._multi_choice_by_input(options)
+
+        selected = 0
+        checked: set[int] = set()
+        with Live(self._render_multi_choice(options, selected, checked), console=self.console, auto_refresh=False, transient=transient) as live:
+            while True:
+                key = self._read_key()
+                if key == "up":
+                    selected = (selected - 1) % len(options)
+                elif key == "down":
+                    selected = (selected + 1) % len(options)
+                elif key == " ":
+                    checked ^= {selected}
+                elif key == "enter":
+                    if checked:
+                        break
+                    continue
+                elif key is not None and key.isdigit() and key != "0" and int(key) <= len(options):
+                    checked ^= {int(key) - 1}
+                else:
+                    continue
+                live.update(self._render_multi_choice(options, selected, checked))
+                live.refresh()
+
+            if not transient:
+                live.update(self._render_multi_choice(options, selected, checked, show_hint=False))
+                live.refresh()
+
+        return [options[i] for i in sorted(checked)]
+
+
+    def show_deck_metadata(self, meta: DeckMeta):
+        items = list(meta.to_dict().items())
+        for i, (key, value) in enumerate(items):
+            branch = "├─ " if i < len(items) - 1 else "└─ "
+            text = Text()
+            text.append(f"{branch}{key}: ", style=self.COLOR_SECONDARY + " bold")
             text.append(str(value), style=self.COLOR_SECONDARY)
             self.console.print(text)
 

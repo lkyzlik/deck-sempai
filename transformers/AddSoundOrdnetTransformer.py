@@ -81,24 +81,33 @@ class AddSoundOrdnetTransformer(Transformer):
         return NoteOpResult(success=True)
 
 
-    def _transform_deck(self, deck: Deck, side: Side) -> DeckOpResult:
-        results = []
+    def _transform_deck(self, deck: Deck, sides: list[Side]) -> DeckOpResult:
+        combined_results = None
         with self.logger.progress() as prog:
-            task = prog.add_task(f"Getting sounds", total=len(deck.notes))
+            task = prog.add_task(f"Getting sounds", total=len(deck.notes) * len(sides))
 
-            for note in deck.notes:
-                is_last = note == deck.notes[-1]
-                results.append(self._transform_field(note.get_field(side), deck.name, is_last))
+            for side_idx, side in enumerate(sides):
+                is_last_side = side_idx == len(sides) - 1
+                side_results = []
+                for note in deck.notes:
+                    is_last = is_last_side and note == deck.notes[-1]
+                    side_results.append(self._transform_field(note.get_field(side), deck.name, is_last))
 
-                prog.update(task, advance=1)
-            
-        return DeckOpResult(results, op_title="Sound added")
+                    prog.update(task, advance=1)
+
+                if combined_results is None:
+                    combined_results = side_results
+                else:
+                    combined_results = [NoteOpResult(success=a.success and b.success)
+                                        for a, b in zip(combined_results, side_results)]
+
+        return DeckOpResult(combined_results, op_title="Sound added")
 
 
-    def transform_deck(self, deck: Deck, side: str = Side.BACK) -> DeckOpResult:
+    def transform_deck(self, deck: Deck, side: str = None) -> DeckOpResult:
         try:
-            side = Side(side)
+            sides = Side.parse_list(side)
         except ValueError:
             raise DeckOpError(self, "Invalid argument: side, supported: " +  ", ".join([s.value for s in Side]))
 
-        return self._transform_deck(deck, side)
+        return self._transform_deck(deck, sides)

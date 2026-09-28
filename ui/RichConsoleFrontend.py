@@ -1,5 +1,6 @@
 import sys
 import time
+from contextlib import AbstractContextManager
 from typing import Optional
 
 from rich.console import Console, Group
@@ -14,6 +15,7 @@ from Deck import Deck, DeckMeta, Field
 from DeckOperator import DeckOpResult, DeckOpError
 
 from ui.Logger import LoggerProgress
+from ui.Frontend import InteractiveAbort
 
 try:
     import termios
@@ -131,6 +133,19 @@ class RichConsoleFrontend:
         self.console.print(message, style=self.COLOR_PRIMARY)
 
 
+    def fullscreen(self) -> AbstractContextManager:
+        return self.console.screen()
+
+
+    def clear(self):
+        self.console.clear()
+
+
+    def hint(self, message: str):
+        self.console.print()
+        self.console.print(message, style="italic " + self.COLOR_QUIET)
+
+
     def status_bar(self, version: str, current_deck: Deck):
         text = Text()
         text.append("Deck Sempai", style=self.COLOR_PRIMARY + " bold")
@@ -239,15 +254,15 @@ class RichConsoleFrontend:
 
 
     def _read_key(self) -> Optional[str]:
-        """Reads a single keypress, returning "up"/"down"/"enter", a single printable
-        character, or None for anything else (ignored). Raises KeyboardInterrupt on
+        """Reads a single keypress, returning "up"/"down"/"left"/"enter", a single
+        printable character, or None for anything else (ignored). Raises KeyboardInterrupt on
         Ctrl+C, since raw mode otherwise swallows it instead of raising SIGINT."""
         if msvcrt:
             ch = msvcrt.getch()
             if ch == b"\x03":
                 raise KeyboardInterrupt
             if ch in (b"\x00", b"\xe0"):
-                return {b"H": "up", b"P": "down"}.get(msvcrt.getch())
+                return {b"H": "up", b"P": "down", b"K": "left"}.get(msvcrt.getch())
             if ch in (b"\r", b"\n"):
                 return "enter"
             try:
@@ -266,7 +281,7 @@ class RichConsoleFrontend:
             if ch == "\x1b":
                 if sys.stdin.read(1) != "[":
                     return None
-                return {"A": "up", "B": "down"}.get(sys.stdin.read(1))
+                return {"A": "up", "B": "down", "D": "left"}.get(sys.stdin.read(1))
             if ch in ("\r", "\n"):
                 return "enter"
             return ch if ch.isprintable() else None
@@ -274,7 +289,7 @@ class RichConsoleFrontend:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
-    def _render_choice(self, options: list[str], selected: int, show_hint: bool = True) -> Group:
+    def _render_choice(self, options: list[str], selected: int, show_hint: bool = True, abortable: bool = True) -> Group:
         lines = []
         for i, option in enumerate(options, 1):
             text = Text()
@@ -291,8 +306,12 @@ class RichConsoleFrontend:
         if not show_hint:
             return Group(*lines)
 
-        hint = Text("↑/↓: navigate · Enter: select · Ctrl+C: exit", style="italic " + self.COLOR_QUIET)
-        return Group(*lines, hint)
+        hint_text = "↑/↓ navigate · Enter select"
+        if abortable:
+            hint_text += " · ← back"
+        hint_text += " · Ctrl+C exit"
+        hint = Text(hint_text, style="italic " + self.COLOR_QUIET)
+        return Group(*lines, Text(""), hint)
 
 
     def _choice_by_input(self, options: list[str]) -> str:
@@ -309,7 +328,7 @@ class RichConsoleFrontend:
             self.error(f"Enter a number between 1 and {len(options)}.")
 
 
-    def choice(self, prompt: str, options: list[str], transient: bool = False) -> str:
+    def choice(self, prompt: str, options: list[str], transient: bool = False, abortable: bool = True) -> str:
         if prompt:
             self.console.print(prompt, style="italic " + self.COLOR_PRIMARY)
 
@@ -318,10 +337,12 @@ class RichConsoleFrontend:
             return self._choice_by_input(options)
 
         selected = 0
-        with Live(self._render_choice(options, selected), console=self.console, auto_refresh=False, transient=transient) as live:
+        with Live(self._render_choice(options, selected, abortable=abortable), console=self.console, auto_refresh=False, transient=transient) as live:
             while True:
                 key = self._read_key()
-                if key == "up":
+                if key == "left" and abortable:
+                    raise InteractiveAbort
+                elif key == "up":
                     selected = (selected - 1) % len(options)
                 elif key == "down":
                     selected = (selected + 1) % len(options)
@@ -332,7 +353,7 @@ class RichConsoleFrontend:
                     break
                 else:
                     continue
-                live.update(self._render_choice(options, selected))
+                live.update(self._render_choice(options, selected, abortable=abortable))
                 live.refresh()
 
             if not transient:
@@ -342,7 +363,7 @@ class RichConsoleFrontend:
         return options[selected]
 
 
-    def _render_multi_choice(self, options: list[str], selected: int, checked: set[int], show_hint: bool = True) -> Group:
+    def _render_multi_choice(self, options: list[str], selected: int, checked: set[int], show_hint: bool = True, abortable: bool = True) -> Group:
         lines = []
         for i, option in enumerate(options, 1):
             idx = i - 1
@@ -361,8 +382,12 @@ class RichConsoleFrontend:
         if not show_hint:
             return Group(*lines)
 
-        hint = Text("↑/↓: navigate · Space: toggle · Enter: confirm · Ctrl+C: exit", style="italic " + self.COLOR_QUIET)
-        return Group(*lines, hint)
+        hint_text = "↑/↓ navigate · Space toggle · Enter confirm"
+        if abortable:
+            hint_text += " · ← back"
+        hint_text += " · Ctrl+C exit"
+        hint = Text(hint_text, style="italic " + self.COLOR_QUIET)
+        return Group(*lines, Text(""), hint)
 
 
     def _multi_choice_by_input(self, options: list[str]) -> list[str]:
@@ -380,7 +405,7 @@ class RichConsoleFrontend:
             self.error(f"Enter one or more numbers between 1 and {len(options)}, separated by commas.")
 
 
-    def multi_choice(self, prompt: str, options: list[str], transient: bool = False) -> list[str]:
+    def multi_choice(self, prompt: str, options: list[str], transient: bool = False, abortable: bool = True) -> list[str]:
         if prompt:
             self.console.print(prompt, style="italic " + self.COLOR_PRIMARY)
 
@@ -390,10 +415,12 @@ class RichConsoleFrontend:
 
         selected = 0
         checked: set[int] = set()
-        with Live(self._render_multi_choice(options, selected, checked), console=self.console, auto_refresh=False, transient=transient) as live:
+        with Live(self._render_multi_choice(options, selected, checked, abortable=abortable), console=self.console, auto_refresh=False, transient=transient) as live:
             while True:
                 key = self._read_key()
-                if key == "up":
+                if key == "left" and abortable:
+                    raise InteractiveAbort
+                elif key == "up":
                     selected = (selected - 1) % len(options)
                 elif key == "down":
                     selected = (selected + 1) % len(options)
@@ -407,7 +434,7 @@ class RichConsoleFrontend:
                     checked ^= {int(key) - 1}
                 else:
                     continue
-                live.update(self._render_multi_choice(options, selected, checked))
+                live.update(self._render_multi_choice(options, selected, checked, abortable=abortable))
                 live.refresh()
 
             if not transient:

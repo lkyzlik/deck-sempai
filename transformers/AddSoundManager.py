@@ -19,42 +19,46 @@ class AddSoundManager(Transformer):
         self.language_map = language_map or {}
 
 
-    def _transform_deck(self, deck: Deck, side: Side, lang: Language) -> DeckOpResult:
-        if lang == Language.NONE:
-            return DeckOpResult.all_ok(len(deck.notes), op_title="Skipped")
+    def _resolve_lang(self, deck: Deck, side: Side, lang: str = None) -> Language:
+        if not lang:
+            lang = deck.meta.lang_front if side == Side.FRONT else deck.meta.lang_back
+        try:
+            return Language(lang)
+        except ValueError:
+            raise DeckOpError(self, "Invalid argument: lang, supported: " + ", ".join([l.value for l in Language]))
 
+
+    def _transformer_for(self, lang: Language) -> Transformer:
         name = self.language_map.get(lang.short()) or self.language_map.get("other", self.DEFAULT_TRANSFORMER)
         transformer = self.transformers.get(name)
         if not transformer:
             raise DeckOpError(self, f"{name!r} transformer not found")
-
-        return transformer.transform_deck(deck, side=side)
+        return transformer
 
 
     def transform_deck(self, deck: Deck, side: str = None, lang: str = None) -> DeckOpResult:
-        if not side:
-            return self._transform_deck_all_sides(deck, lang)
         try:
-            side = Side(side)
+            sides = Side.parse_list(side)
         except ValueError:
-            raise DeckOpError(self, f"Invalid argument: side, supported: " +  ", ".join([s.value for s in Side]))
+            raise DeckOpError(self, "Invalid argument: side, supported: " +  ", ".join([s.value for s in Side]))
 
-        if not lang:
-            lang = deck.meta.lang_front if side == Side.FRONT else deck.meta.lang_back
-        try:
-            lang = Language(lang)
-        except ValueError:
-            raise DeckOpError(self, "Invalid argument: lang, supported: " + ", ".join([l.value for l in Language]))
+        # Group requested sides by resolved language, so each underlying transformer (which
+        # itself supports multiple sides) is invoked once per group, with all of that group's
+        # sides passed down together, rather than looping one side at a time.
+        groups: dict[Language, list[Side]] = {}
+        for s in sides:
+            resolved_lang = self._resolve_lang(deck, s, lang)
+            groups.setdefault(resolved_lang, []).append(s)
 
-        return self._transform_deck(deck, side, lang)
-
-
-    def _transform_deck_all_sides(self, deck: Deck, lang: str = None) -> DeckOpResult:
         combined_results = None
         op_title = "Skipped"
+        for resolved_lang, group_sides in groups.items():
+            side_str = ",".join(s.value for s in group_sides)
+            if resolved_lang == Language.NONE:
+                result = DeckOpResult.all_ok(len(deck.notes), op_title="Skipped")
+            else:
+                result = self._transformer_for(resolved_lang).transform_deck(deck, side=side_str)
 
-        for side in Side:
-            result = self.transform_deck(deck, side=side.value, lang=lang)
             if result.op_title != "Skipped":
                 op_title = result.op_title
 

@@ -18,10 +18,19 @@ class RemoveSoundTransformer(Transformer):
         return DeckOpResult(results, op_title="Sound removed")
 
 
-    def transform_deck(self, deck: Deck, side: str = Side.BACK) -> DeckOpResult:
+    def transform_deck(self, deck: Deck, side: str = None) -> DeckOpResult:
         try:
-            side = Side(side)
+            sides = Side.parse_list(side)
         except ValueError:
             raise DeckOpError(self, "Invalid argument: side, supported: " +  ", ".join([s.value for s in Side]))
 
-        return self._transform_deck(deck, side)
+        combined_results = None
+        for s in sides:
+            result = self._transform_deck(deck, s)
+            if combined_results is None:
+                combined_results = result.note_results
+            else:
+                combined_results = [NoteOpResult(success=a.success and b.success)
+                                    for a, b in zip(combined_results, result.note_results)]
+
+        return DeckOpResult(combined_results, op_title="Sound removed")

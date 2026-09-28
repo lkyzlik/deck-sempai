@@ -1,3 +1,6 @@
+import os
+from contextlib import AbstractContextManager, nullcontext
+
 from Deck import Deck, DeckMeta, Field
 from DeckOperator import DeckOpResult
 
@@ -55,6 +58,19 @@ class SimpleConsoleFrontend:
 
 
     def print(self, message: str):
+        print(message)
+
+
+    def fullscreen(self) -> AbstractContextManager:
+        return nullcontext()
+
+
+    def clear(self):
+        os.system("cls" if os.name == "nt" else "clear")
+
+
+    def hint(self, message: str):
+        print()
         print(message)
 
 
@@ -149,7 +165,7 @@ class SimpleConsoleFrontend:
         return lines
 
 
-    def choice(self, prompt: str, options: list[str], transient: bool = False) -> str:
+    def choice(self, prompt: str, options: list[str], transient: bool = False, abortable: bool = True) -> str:
         if prompt:
             self.print(prompt)
         for i, option in enumerate(options, 1):
@@ -161,7 +177,7 @@ class SimpleConsoleFrontend:
         return answer
 
 
-    def multi_choice(self, prompt: str, options: list[str], transient: bool = False) -> list[str]:
+    def multi_choice(self, prompt: str, options: list[str], transient: bool = False, abortable: bool = True) -> list[str]:
         if prompt:
             self.print(prompt)
         for i, option in enumerate(options, 1):

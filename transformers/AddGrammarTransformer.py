@@ -92,33 +92,38 @@ class AddGrammarTransformer(Transformer):
         return NoteOpResult(success=True)
 
 
-    def _transform_deck(self, deck: Deck, side: Side, grammar_rules: list[GrammarRule]) -> DeckOpResult:
+    def _transform_deck(self, deck: Deck, sides: list[Side], grammar_rules: list[GrammarRule]) -> DeckOpResult:
+        combined_results = None
         with self.logger.progress() as prog:
-            task = prog.add_task("Adding grammar help", total=len(deck.notes))
+            task = prog.add_task("Adding grammar help", total=len(deck.notes) * len(sides))
 
-            results: list[NoteOpResult] = []
-            for note in deck.notes:
-                result = self._transform_note(note, side, grammar_rules)
-                results.append(result)
-                prog.update(task, advance=1)
+            for side in sides:
+                side_results: list[NoteOpResult] = []
+                for note in deck.notes:
+                    result = self._transform_note(note, side, grammar_rules)
+                    side_results.append(result)
+                    prog.update(task, advance=1)
 
-        return DeckOpResult(results, op_title="Added grammar help (AI)")
+                if combined_results is None:
+                    combined_results = side_results
+                else:
+                    combined_results = [NoteOpResult(success=a.success and b.success)
+                                        for a, b in zip(combined_results, side_results)]
+
+        return DeckOpResult(combined_results, op_title="Added grammar help (AI)")
 
 
-    def transform_deck(self, deck: Deck, side: str = Side.FRONT.value, rule: str = None) -> DeckOpResult:
+    def transform_deck(self, deck: Deck, side: str = None, rule: str = None) -> DeckOpResult:
         try:
-            side = Side(side)
+            sides = Side.parse_list(side)
         except ValueError:
             raise DeckOpError(self, "Invalid argument: side, supported: " +
                                     ', '.join([s.value for s in Side]))
 
-        if not rule:
-            grammar_rules = list(GrammarRule)
-        else:
-            try:
-                grammar_rules = [GrammarRule(gr.strip()) for gr in rule.split(",")]
-            except ValueError:
-                raise DeckOpError(self, "Invalid argument: rule, supported (comma-separated): " +
-                                        ', '.join([g.value for g in GrammarRule]))
+        try:
+            grammar_rules = GrammarRule.parse_list(rule)
+        except ValueError:
+            raise DeckOpError(self, "Invalid argument: rule, supported (comma-separated): " +
+                                    ', '.join([g.value for g in GrammarRule]))
 
-        return self._transform_deck(deck, side, grammar_rules)
+        return self._transform_deck(deck, sides, grammar_rules)

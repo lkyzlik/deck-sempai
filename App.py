@@ -1,4 +1,5 @@
 import json
+import tomllib
 
 from dataclasses import dataclass, asdict
 from dacite import from_dict
@@ -9,7 +10,7 @@ from rich.text import Text
 from Config import Config
 from Deck import Deck, DeckMeta
 from DeckOperator import DeckOpResult, DeckOpError
-from Enums import Language
+from Enums import GrammarRule, Language
 
 from exporters.Exporter import Exporter
 from exporters.StorageExporter import StorageExporter
@@ -23,7 +24,7 @@ from integrations.AnkiIntegration import AnkiIntegration
 from integrations.Integration import Integration
 from integrations.OllamaIntegration import OllamaIntegration
 from integrations.OrdnetIntegration import OrdnetIntegration
-from ui.Frontend import Frontend
+from ui.Frontend import Frontend, InteractiveAbort
 from ui.RichConsoleFrontend import RichConsoleFrontend
 from ui.SimpleConsoleFrontend import SimpleConsoleFrontend
 
@@ -52,6 +53,9 @@ class App:
     def __init__(self):
         self.config = Config.load()
         self.state = AppState()
+
+        with open(Path(__file__).parent / "pyproject.toml", "rb") as f:
+            self.version = tomllib.load(f)["project"]["version"]
 
         data_dir = Path(user_data_dir("deck-sempai"))
         self.state_file = data_dir / "state.json"
@@ -181,8 +185,6 @@ class App:
         self.state.current_deck = name
         self._save_state()
 
-        self.frontend.show_deck_name(self.state.current_deck)
-
 
     def _storage_exporter(self) -> StorageExporter | None:
         exporter = self.exporters[self.config.app.deck_storage]
@@ -190,6 +192,24 @@ class App:
             self.frontend.error(f"Exporter '{self.config.app.deck_storage}' does not support managing decks.")
             return None
         return exporter
+
+
+    def _prompt_side(self, prompt: str = "") -> str:
+        options = ["Front side", "Back side", "Both sides"]
+        choice = self.frontend.choice(prompt, options)
+        return {"Front side": "front", "Back side": "back", "Both sides": "front,back"}[choice]
+
+
+    def _prompt_grammar_rules(self, prompt: str = "") -> str:
+        options = [r.value for r in GrammarRule]
+        chosen = self.frontend.multi_choice(prompt, options)
+        return ",".join(chosen)
+
+
+    def _prompt_translate_direction(self, prompt: str = "") -> str | None:
+        options = ["Front → Back", "Back → Front", "Auto (detect per note)"]
+        choice = self.frontend.choice(prompt, options)
+        return {"Front → Back": "front:back", "Back → Front": "back:front", "Auto (detect per note)": None}[choice]
 
 
     def _prompt_language(self, prompt: str) -> Language:
@@ -205,15 +225,20 @@ class App:
                 self.frontend.error(f"Unknown language '{answer}'.")
 
 
-    def _create_interactive(self) -> tuple[str, dict] | None:
-        name = self.frontend.input("Deck's name:\n").strip()
-
-        metadata = {}
+    def _prompt_deck_metadata(self) -> dict:
         is_language_deck = self.frontend.input("Is it a deck for language learning? (y - yes, n - no)\n").lower() == "y"
         if is_language_deck:
-            lang_front = self._prompt_language("Front side language:\n")
-            lang_back = self._prompt_language("Back side language:\n")
-            metadata = {"lang_front": str(lang_front), "lang_back": str(lang_back)}
+            lang_front = self._prompt_language("Front side language:")
+            lang_back = self._prompt_language("Back side language:")
+        else:
+            lang_front = lang_back = Language.NONE
+
+        return {"lang_front": str(lang_front), "lang_back": str(lang_back)}
+
+
+    def _create_interactive(self) -> tuple[str, dict] | None:
+        name = self.frontend.input("Deck's name:\n").strip()
+        metadata = self._prompt_deck_metadata()
 
         deck = Deck(name)
         deck.meta.update(metadata)
@@ -284,12 +309,31 @@ class App:
         self.frontend.info(f"Deleted deck '{name}'")
 
 
+    def _meta_interactive(self, deck: Deck) -> dict | None:
+        metadata = self._prompt_deck_metadata()
+
+        preview_meta = DeckMeta(deck.meta.to_dict())
+        preview_meta.update(metadata)
+        self.frontend.show_deck_name(deck.name)
+        self.frontend.show_deck_metadata(preview_meta)
+
+        if self.frontend.input("Do you want to save these changes? (y - yes, n - no)\n").lower() != "y":
+            return None
+
+        return metadata
+
+
     def meta(self, **kwargs):
         try:
             deck: Deck = self._load_deck()
+
+            if not kwargs:
+                kwargs = self._meta_interactive(deck)
+                if kwargs is None:
+                    return
+
             deck.meta.update(kwargs)
 
-            self.frontend.show_deck_name(deck.name)
             self.frontend.show_deck_metadata(deck.meta)
 
             self._save_deck(deck)
@@ -425,4 +469,65 @@ class App:
             self.frontend.error(str(e))
             return
 
+
+    def add_sound(self, side: str = None):
+        self.transform("add-sound", side=side or self._prompt_side())
+
+
+    def remove_sound(self, side: str = None):
+        self.transform("remove-sound", side=side or self._prompt_side())
+
         self._clear_temp_files()
+
+
+    def add_grammar(self, rule: str = None, side: str = None):
+        self.transform(
+            "add-grammar",
+            rule=rule or self._prompt_grammar_rules("Grammar rule:"),
+            side=side or self._prompt_side("Side:"),
+        )
+
+
+    def translate(self, side: str = None):
+        if not side:
+            side = self._prompt_translate_direction()
+        self.transform("translate", side=side)
+
+
+    def interactive(self):
+        show_deck_option = "Show deck"
+        actions = {
+            show_deck_option: self.show,
+            "Switch deck": self.deck,
+            "Add cards": self.add,
+            "Add sound to cards": self.add_sound,
+            "Remove sound from cards": self.remove_sound,
+            "Add grammar help to cards (articles, plulars etc.)": self.add_grammar,
+            "Translate cards": self.translate,
+            "Create new deck": self.create,
+            "Delete deck": self.delete,
+        }
+
+        with self.frontend.fullscreen():
+            while True:
+                self.frontend.clear()
+                self._load_state()
+
+                try:
+                    current_deck = self._load_deck()
+                except DeckOpError as e:
+                    self.frontend.error(str(e))
+                    current_deck = Deck(self.state.current_deck)
+
+                self.frontend.status_bar(self.version, current_deck)
+
+                try:
+                    choice = self.frontend.choice("", list(actions.keys()), transient=True, abortable=False)
+
+                    actions[choice]()
+
+                    if choice == show_deck_option:
+                        self.frontend.hint("Enter back")
+                        self.frontend.input("")
+                except InteractiveAbort:
+                    pass

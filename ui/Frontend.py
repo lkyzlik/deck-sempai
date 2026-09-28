@@ -1,3 +1,4 @@
+from contextlib import AbstractContextManager
 from typing import Protocol
 
 from Deck import Deck, DeckMeta
@@ -6,7 +7,20 @@ from DeckOperator import DeckOpResult
 from ui.Logger import Logger
 
 
+class InteractiveAbort(Exception):
+    pass
+
+
 class Frontend(Logger, Protocol):
+    def fullscreen(self) -> AbstractContextManager:
+        ...
+
+    def clear(self):
+        ...
+
+    def hint(self, message: str):
+        ...
+
     def status_bar(self, version: str, current_deck: Deck):
         ...
 
@@ -28,8 +42,8 @@ class Frontend(Logger, Protocol):
     def input_multiline(self, prompt: str) -> list[str]:
         ...
 
-    def choice(self, prompt: str, options: list[str], transient: bool = False) -> str:
+    def choice(self, prompt: str, options: list[str], transient: bool = False, abortable: bool = True) -> str:
         ...
 
-    def multi_choice(self, prompt: str, options: list[str], transient: bool = False) -> list[str]:
+    def multi_choice(self, prompt: str, options: list[str], transient: bool = False, abortable: bool = True) -> list[str]:
         ...

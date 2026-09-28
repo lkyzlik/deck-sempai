@@ -16,7 +16,7 @@ class AnkiImporter(Importer):
         deck = Deck(deck_name)
 
         try:
-            note_ids: list = self.ac.find_notes(f'deck:{deck.name}')
+            note_ids: list = self.ac.find_notes(f'deck:"{deck.name}"')
             notes_info: list  = self.ac.notes_info(note_ids)
             metadata: dict = self.ac.get_deck_meta(deck.name)
         except AnkiIntegrationDisabledError as e:
@@ -24,7 +24,12 @@ class AnkiImporter(Importer):
         except AnkiIntegrationError as e:
             raise DeckOpError(self, str(e))
 
-        deck.meta = DeckMeta(metadata)
+        deck.meta = DeckMeta()
+        if deck.meta.update(metadata, self.logger):
+            try:
+                self.ac.save_deck_meta(deck.name, deck.meta.to_dict())
+            except AnkiIntegrationError as e:
+                self._warning(f"Failed to save corrected deck metadata: {e}")
 
         for note_info in notes_info:
             id = note_info['noteId']

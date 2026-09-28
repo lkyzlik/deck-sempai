@@ -2,7 +2,7 @@ from pathlib import Path
 
 from Deck import Deck
 from DeckOperator import DeckOpResult, DeckOpError
-from Enums import Language, Side
+from Enums import Language
 
 from ui.Logger import Logger
 from integrations.OllamaIntegration import OllamaIntegration
@@ -18,7 +18,7 @@ class AddGrammarOllamaTransformer(Transformer):
         self.prompts_path = prompts_path
 
 
-    def transform_deck(self, deck: Deck, side: str = Side.FRONT.value, lang: str = None,
+    def transform_deck(self, deck: Deck, side: str = None, lang: str = None,
                        rule: str = None, model: str = None) -> DeckOpResult:
         if not lang:
             raise DeckOpError(self, "Missing argument: lang")

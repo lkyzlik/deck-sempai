@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Protocol, Self
 
 from Enums import Side, Model, Language
+from ui.Logger import Logger
 
 
 class DeckMetaAttr(Protocol):
@@ -16,22 +17,36 @@ class DeckMetaAttr(Protocol):
 
 
 class DeckMeta:
-    def __init__(self, data: dict = {}):
-        self.lang_front: Language = Language.NONE
-        self.lang_back: Language = Language.NONE
-        self.update(data)
+    DEFAULTS: dict[str, DeckMetaAttr] = {
+        "lang_front": Language.NONE,
+        "lang_back": Language.NONE,
+    }
+
+    def __init__(self, data: dict = None, logger: Logger = None):
+        for key, default in self.DEFAULTS.items():
+            setattr(self, key, default)
+        self.update(data or {}, logger)
 
 
-    def update(self, data: dict):
-        for key in data:
-            if hasattr(self, key):
-                value: DeckMetaAttr = getattr(self, key)
+    def update(self, data: dict, logger: Logger = None) -> bool:
+        corrected = False
+        for key, default in self.DEFAULTS.items():
+            if key not in data:
+                continue
+            value: DeckMetaAttr = getattr(self, key)
+            try:
                 new_value: DeckMetaAttr = type(value).from_str(data[key])
-                setattr(self, key, new_value)
+            except ValueError:
+                if logger:
+                    logger.warning(f"Invalid value for deck metadata key '{key}', setting to default '{default}'")
+                new_value = default
+                corrected = True
+            setattr(self, key, new_value)
+        return corrected
 
 
     def to_dict(self) -> dict:
-        return {k: str(v) for k, v in vars(self).items()}
+        return {k: str(getattr(self, k)) for k in self.DEFAULTS}
 
 
 class Field:

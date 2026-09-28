@@ -12,6 +12,16 @@ app = App()
 cli = typer.Typer()
 
 
+@cli.callback(invoke_without_command=True)
+def main(ctx: typer.Context):
+    """
+    Manage Anki flashcard decks. If called with no command, runs an interactive menu
+    to switch decks, add/transform cards, or create/delete decks.
+    """
+    if ctx.invoked_subcommand is None:
+        app.interactive()
+
+
 def get_kwargs(ctx: typer.Context) -> dict:
     parsed = {}
     for arg in ctx.args:
@@ -25,7 +35,8 @@ def get_kwargs(ctx: typer.Context) -> dict:
 def meta(ctx: typer.Context):
     """
     Update the current deck's metadata with the provided keyword arguments.
-    If no keyword arguments are provided, show the current metadata.
+    If no keyword arguments are provided, runs an interactive setup asking the same
+    questions as 'create' (except the deck name) to update the metadata instead.
     """
     app.meta(**get_kwargs(ctx))
 
@@ -106,47 +117,50 @@ def show():
     app.show()
 
 
-@cli.command()
-def sound(side: Optional[str] = typer.Argument(None, help=f"Side of the card: {', '.join([s.value for s in Side])}. If omitted, applies to both sides."),
-          delete: bool = typer.Option(False, "--delete", "-d", help="Remove sound instead of adding it.")):
+@cli.command("add-sound")
+def add_sound(side: Optional[str] = typer.Argument(None, help=f"Comma-separated sides of the card: {', '.join([s.value for s in Side])}. If omitted, runs an interactive picker.")):
     """
-    Add sound to the specified SIDE of the current deck. If SIDE is omitted, adds sound
-    to both sides.
-    Use --delete/-d to remove sounds instead (defaults to the back side if SIDE is omitted).
+    Add sound to the specified SIDE(s) of the current deck. Multiple sides can be combined
+    as a comma-separated list, e.g. 'front,back'. If SIDE is omitted, runs an interactive
+    picker asking for the front side, back side, or both.
     """
-    kwargs = {"side": side} if side else {}
-    if delete:
-        app.transform("remove-sound", **kwargs)
-    else:
-        app.transform("add-sound", **kwargs)
+    app.add_sound(side)
+
+
+@cli.command("rm-sound")
+def rm_sound(side: Optional[str] = typer.Argument(None, help=f"Comma-separated sides of the card: {', '.join([s.value for s in Side])}. If omitted, runs an interactive picker.")):
+    """
+    Remove sound from the specified SIDE(s) of the current deck. Multiple sides can be
+    combined as a comma-separated list, e.g. 'front,back'. If SIDE is omitted, runs an
+    interactive picker asking for the front side, back side, or both.
+    """
+    app.remove_sound(side)
+
+
+@cli.command("add-grammar")
+def add_grammar(rule: Optional[str] = typer.Argument(None, help=f"Comma-separated grammar help rules: {', '.join([g.value for g in GrammarRule])}. If omitted, runs an interactive picker."),
+                 side: Optional[str] = typer.Argument(None, help=f"Comma-separated sides of the card: {', '.join([s.value for s in Side])}. If omitted, runs an interactive picker.")):
+    """
+    Add grammar help of the specified RULE(s) to the specified SIDE(s) of the current deck.
+    Multiple rules or sides can each be combined as a comma-separated list, e.g.
+    'noun_article,noun_plural' or 'front,back'. If RULE is omitted, runs an interactive
+    picker allowing multiple rules to be selected. If SIDE is omitted, runs an interactive
+    picker asking for the front side, back side, or both.
+    """
+    app.add_grammar(rule, side)
 
 
 @cli.command()
-def grammar(rule: Optional[str] = typer.Argument(None, help=f"Comma-separated grammar help rules: {', '.join([g.value for g in GrammarRule])}. If omitted, applies all of them."),
-            side: Optional[str] = typer.Argument(None, help=f"Side of the card: {', '.join([s.value for s in Side])}. If omitted, applies to both sides.")):
-    """
-    Add grammar help of the specified RULE(s) to the specified SIDE of the current deck.
-    Multiple rules can be combined as a comma-separated list, e.g. 'noun_article,noun_plural'.
-    If RULE is omitted, applies all supported rules. If SIDE is omitted, applies to both sides.
-    """
-    kwargs = {}
-    if rule:
-        kwargs["rule"] = rule
-    if side:
-        kwargs["side"] = side
-    app.transform("add-grammar", **kwargs)
-
-
-@cli.command()
-def translate(side: Optional[str] = typer.Argument(None, help=f"Direction to translate: FROM:TO, where FROM and TO are: {', '.join([s.value for s in Side])}.")):
+def translate(side: Optional[str] = typer.Argument(None, help=f"Direction to translate: FROM:TO, where FROM and TO are: {', '.join([s.value for s in Side])}. If omitted, runs an interactive picker.")):
     """
     Translate the current deck. If SIDE (format FROM:TO) is given, translates every note
     from FROM to TO, overwriting TO regardless of its current content.
 
-    If SIDE is omitted, translates each note from whichever side is filled to whichever
-    side is empty, skipping notes that already have text on both sides.
+    If SIDE is omitted, runs an interactive picker to choose a direction, or an 'auto' mode
+    that translates each note from whichever side is filled to whichever side is empty,
+    skipping notes that already have text on both sides.
     """
-    app.transform("translate", side=side)
+    app.translate(side)
 
 
 @cli.command(context_settings=CTX_SETTINGS)

@@ -29,6 +29,12 @@ class AliasedStrEnum(StrEnum):
     def from_str(cls, value: str) -> Self:
         return cls(value)
 
+    @classmethod
+    def parse_list(cls, value: str | None) -> list[Self]:
+        if not value:
+            return list(cls)
+        return [cls(v.strip()) for v in value.split(",")]
+
 
 class Language(AliasedStrEnum):
     NONE = "none", "x"

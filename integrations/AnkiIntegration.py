@@ -4,6 +4,8 @@ import requests
 from pathlib import Path
 
 class AnkiIntegration:
+    name = "anki"
+
     METADATA_KEY = "sempai"
 
     def __init__(self, host="localhost", port=8765):
@@ -36,7 +38,7 @@ class AnkiIntegration:
     def status(self) -> str:
         if not self._enabled:
             return "disabled"
-        return "connected" if self.test_connection() else "not_connected"
+        return "running" if self.test_connection() else "disconnected"
 
 
     def user_help(self) -> str:
@@ -57,7 +59,7 @@ class AnkiIntegration:
                 "params": params
             })
         except requests.RequestException:
-            raise AnkiIntegrationError("Can't connect. Anki app must be running to use this feature.")
+            raise AnkiIntegrationError(f"Can't connect. Run 'setup {self.name}' to check the connection and see repair steps.")
         result = response.json()
         if result.get("error"):
             raise AnkiIntegrationError(result["error"])

@@ -72,12 +72,12 @@ class App:
 
         # Integrations
         self.integrations : dict[str, Integration] = {}
-        for name, integration_cls in (("anki", AnkiIntegration), ("ollama", OllamaIntegration), ("ordnet", OrdnetIntegration)):
-            integration_config = self.config.integrations.get(name, {})
+        for integration_cls in (AnkiIntegration, OllamaIntegration, OrdnetIntegration):
             integration = integration_cls()
+            integration_config = self.config.integrations.get(integration.name, {})
             integration.configure(integration_config)
             integration.enable(integration_config.get("enable", True))
-            self.integrations[name] = integration
+            self.integrations[integration.name] = integration
 
         self.exporters : dict[str, Exporter] = {
             "anki": AnkiExporter(self.frontend, self.integrations["anki"], self.media_dir),
@@ -494,6 +494,58 @@ class App:
         self.transform("translate", side=side)
 
 
+    def _repair_integration(self, integration: Integration):
+        self.frontend.print("")
+        self.frontend.print(f"'{integration.name}' integration is not running. Steps to repair:")
+        self.frontend.print(integration.user_help())
+
+        options = ["Retry connection", "Skip"]
+        failures = 0
+        while True:
+            choice = self.frontend.choice("", options)
+            if choice == "Retry connection":
+                if integration.test_connection():
+                    self.frontend.print(f"Success! '{integration.name}' connected.")
+                    return
+                failures += 1
+                self.frontend.print(f"Still can't reach '{integration.name}'.")
+                if failures >= 2:
+                    self.frontend.print(
+                        f"You can disable the '{integration.name}' integration by setting "
+                        f"enable = false in the integrations.{integration.name} section of config.toml."
+                    )
+                continue
+            return
+
+
+    def _setup_one(self, integration: Integration):
+        status = integration.status()
+        if status == "disabled":
+            self.frontend.print(f"'{integration.name}' integration is disabled.")
+            return
+        if status == "running":
+            self.frontend.print(f"'{integration.name}' integration is already running.")
+            return
+        self._repair_integration(integration)
+
+
+    def setup(self, integration: str = None):
+        if integration:
+            target = self.integrations.get(integration.lower())
+            if not target:
+                self.frontend.error(f"Integration '{integration}' not found. Available integrations: {', '.join(self.integrations)}")
+                return
+            self._setup_one(target)
+            return
+
+        for i in self.integrations.values():
+            self.frontend.print(f"'{i.name}': {i.status()}")
+
+        for i in self.integrations.values():
+            if i.status() == "disconnected":
+                self._repair_integration(i)
+
+
     def interactive(self):
         show_deck_option = "Show deck"
         actions = {
@@ -521,12 +573,21 @@ class App:
 
                 self.frontend.status_bar(self.version, current_deck)
 
+                statuses = [s for s in (i.status() for i in self.integrations.values()) if s != "disabled"]
+                running = sum(1 for s in statuses if s == "running")
+                total = len(statuses)
+                menu_actions = dict(actions)
+                setup_option = None
+                if running < total:
+                    setup_option = f"Setup integrations ({running} of {total} running)"
+                    menu_actions = {setup_option: self.setup, **menu_actions}
+
                 try:
-                    choice = self.frontend.choice("", list(actions.keys()), transient=True, abortable=False)
+                    choice = self.frontend.choice("", list(menu_actions.keys()), transient=True, abortable=False)
 
-                    actions[choice]()
+                    menu_actions[choice]()
 
-                    if choice == show_deck_option:
+                    if choice in (show_deck_option, setup_option):
                         self.frontend.hint("Enter back")
                         self.frontend.input("")
                 except InteractiveAbort:

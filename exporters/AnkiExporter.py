@@ -43,7 +43,7 @@ class AnkiExporter(StorageExporter):
             try:
                 self.ac.delete_media_file(sound)
             except AnkiIntegrationError as e:
-                self._warning(f"Can't cleanup sound {sound!r}")
+                self._warning(f"Can't cleanup sound {sound!r}: {e}")
 
 
     def _export_note(self, note: Note, existing_note_ids: list[int], deck_name: str) -> NoteOpResult:
@@ -60,7 +60,7 @@ class AnkiExporter(StorageExporter):
                 except AnkiIntegrationDisabledError as e:
                     raise DeckOpError(self, str(e)) from e
                 except AnkiIntegrationError as e:
-                    self._warning(f"Can't add sound {sound!r}")
+                    self._warning(f"Can't add sound {sound!r}: {e}")
                     self._cleanup_sounds(added_sounds)
                     return NoteOpResult(False)
                 except IOError as e:
@@ -76,7 +76,7 @@ class AnkiExporter(StorageExporter):
         except AnkiIntegrationDisabledError as e:
             raise DeckOpError(self, str(e)) from e
         except AnkiIntegrationError as e:
-            self._warning(f"Can't add note {(note.front.get_text_oneline())!r}")
+            self._warning(f"Can't add note {(note.front.get_text_oneline())!r}: {e}")
             self._cleanup_sounds(added_sounds)
             return NoteOpResult(False)
 

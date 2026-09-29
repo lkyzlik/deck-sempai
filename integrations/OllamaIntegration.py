@@ -2,6 +2,8 @@ from ollama import ChatResponse, Client, ResponseError
 
 
 class OllamaIntegration:
+    name = "ollama"
+
     def __init__(self):
         self._enabled = True
         self._host = None
@@ -36,7 +38,7 @@ class OllamaIntegration:
     def status(self) -> str:
         if not self._enabled:
             return "disabled"
-        return "connected" if self.test_connection() else "not_connected"
+        return "running" if self.test_connection() else "disconnected"
 
 
     def user_help(self) -> str:
@@ -55,7 +57,11 @@ class OllamaIntegration:
         try:
             response: ChatResponse = self._client().chat(model or self._default_model, messages=messages, think=think,
                                                          keep_alive=keep_alive, options=options)
-        except (ResponseError, ConnectionError) as e:
+        except ConnectionError as e:
+            raise OllamaIntegrationError(
+                f"Can't reach Ollama. Run 'setup {self.name}' to check the connection and see repair steps."
+            ) from e
+        except ResponseError as e:
             raise OllamaIntegrationError("AI request failed") from e
 
         return response.message.content.strip()

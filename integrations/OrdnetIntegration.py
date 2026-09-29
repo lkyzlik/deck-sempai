@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup, Tag
 
 
 class OrdnetIntegration:
+    name = "ordnet"
+
     BASE_URL = "https://ordnet.dk/ddo/ordbog"
     HEADERS = {
         "User-Agent": (
@@ -15,7 +17,6 @@ class OrdnetIntegration:
     # A common word used to test connectivity: any dictionary entry being reachable confirms
     # both internet access and that ordnet.dk itself is up.
     TEST_WORD = "hus"
-
 
     def __init__(self):
         self.client = httpx.Client(headers=self.HEADERS)
@@ -42,7 +43,7 @@ class OrdnetIntegration:
     def status(self) -> str:
         if not self._enabled:
             return "disabled"
-        return "connected" if self.test_connection() else "not_connected"
+        return "running" if self.test_connection() else "disconnected"
 
 
     def user_help(self) -> str:
@@ -50,6 +51,7 @@ class OrdnetIntegration:
             "Can't reach ordnet.dk. Check your internet connection, then try again. "
             "If the problem persists, ordnet.dk may be down or blocking requests."
         )
+
 
 
     def get_entry(self, word: str, pos: str = None) -> dict:
@@ -64,7 +66,10 @@ class OrdnetIntegration:
                 resp = self.client.get(self.BASE_URL, params={"query": word}, follow_redirects=True, timeout=15)
                 resp.raise_for_status()
             except httpx.HTTPError:
-                raise OrdnetIntegrationError(f"Can't fetch word page")
+                raise OrdnetIntegrationError(
+                    f"Can't reach ordnet.dk to fetch word page. Run 'setup {self.name}' to check the "
+                    "connection and see repair steps."
+                )
             article = self._select_entry(resp.text, word, pos)
             self._entry_cache[cache_key] = self._parse_entry(article)
 

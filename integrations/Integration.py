@@ -2,6 +2,8 @@ from typing import Protocol
 
 
 class Integration(Protocol):
+    name: str
+
     def enable(self, enable: bool):
         ...
 

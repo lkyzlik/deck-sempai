@@ -28,7 +28,7 @@ class OllamaTransformer(Transformer):
         except OllamaIntegrationDisabledError as e:
             raise DeckOpError(self, str(e)) from e
         except OllamaIntegrationError as e:
-            self._warning(f"AI edit failed for {field_from.get_text_oneline()!r}")
+            self._warning(f"AI edit failed for {field_from.get_text_oneline()!r}: {e}")
             return NoteOpResult(success=False)
 
         return NoteOpResult(success=True)

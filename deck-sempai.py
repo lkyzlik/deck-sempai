@@ -117,6 +117,18 @@ def show():
     app.show()
 
 
+@cli.command()
+def setup(integration: Optional[str] = typer.Argument(None, help="Name of a single integration to set up (anki, ollama, ordnet). If omitted, walks through all of them.")):
+    """
+    Show the connection status of every integration (anki, ollama, ordnet), then walk
+    through any that are disconnected, offering to retry the connection or skip it.
+
+    If INTEGRATION is given, only that integration is checked; if it's disabled or
+    already running, this just prints a message instead of walking the repair steps.
+    """
+    app.setup(integration)
+
+
 @cli.command("add-sound")
 def add_sound(side: Optional[str] = typer.Argument(None, help=f"Comma-separated sides of the card: {', '.join([s.value for s in Side])}. If omitted, runs an interactive picker.")):
     """

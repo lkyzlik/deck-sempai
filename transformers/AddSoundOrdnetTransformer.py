@@ -27,7 +27,10 @@ class AddSoundOrdnetTransformer(Transformer):
             resp = self.ordnet.client.get(url, timeout=15)
             resp.raise_for_status()
         except httpx.HTTPError as e:
-            raise OrdnetIntegrationError(f"Can't download file")
+            raise OrdnetIntegrationError(
+                f"Can't reach ordnet.dk to download the sound file. Run 'setup {self.ordnet.name}' to check "
+                "the connection and see repair steps."
+            )
 
         if not output_path.parent.exists():
             output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -71,7 +74,7 @@ class AddSoundOrdnetTransformer(Transformer):
         except OrdnetIntegrationDisabledError as e:
             raise DeckOpError(self, str(e)) from e
         except OrdnetIntegrationError as e:
-            self._warning(f"Can't download sound for {word!r}")
+            self._warning(f"Can't download sound for {word!r}: {e}")
             if not is_last:
                 time.sleep(0.5) # Be polite to the server even on errors
             return NoteOpResult(success=False)

@@ -1,14 +1,14 @@
 import typer
 from typing import Optional
 
-from App import App
+from app.TuiApp import TuiApp
 from Deck import Side
 from Enums import GrammarRule, Model
 
 CTX_SETTINGS = {"allow_extra_args": True, "ignore_unknown_options": True}
 
 
-app = App()
+app = TuiApp()
 cli = typer.Typer()
 
 
@@ -19,7 +19,7 @@ def main(ctx: typer.Context):
     to switch decks, add/transform cards, or create/delete decks.
     """
     if ctx.invoked_subcommand is None:
-        app.interactive()
+        app.tui()
 
 
 def get_kwargs(ctx: typer.Context) -> dict:
@@ -45,7 +45,7 @@ def meta(ctx: typer.Context):
 def deck(name: Optional[str] = typer.Argument(None, help="Name of the deck to switch to. If omitted, runs an interactive picker.")):
     """
     Set the current deck to work with. If no NAME is provided, shows a list of all decks to
-    choose from (the current one marked), with a 'Create new' option to create one instead.
+    choose from (the current one marked), with 'Create new' and 'Delete deck' options too.
     """
     app.deck(name)
 

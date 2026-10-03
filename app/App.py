@@ -24,9 +24,8 @@ from integrations.AnkiIntegration import AnkiIntegration
 from integrations.Integration import Integration
 from integrations.OllamaIntegration import OllamaIntegration
 from integrations.OrdnetIntegration import OrdnetIntegration
-from ui.Frontend import Frontend, InteractiveAbort
-from ui.RichConsoleFrontend import RichConsoleFrontend
-from ui.SimpleConsoleFrontend import SimpleConsoleFrontend
+from ui.frontend.Frontend import Frontend
+from ui.frontend.RichConsoleFrontend import RichConsoleFrontend
 
 from transformers.Transformer import Transformer
 from transformers.AddSoundManager import AddSoundManager
@@ -48,27 +47,24 @@ class AppState:
 
 class App:
     _CREATE_NEW_DECK_OPTION = "Create new"
+    _DELETE_DECK_OPTION = "Delete deck"
     _CURRENT_DECK_SUFFIX = " (current)"
 
     def __init__(self):
         self.config = Config.load()
         self.state = AppState()
 
-        with open(Path(__file__).parent / "pyproject.toml", "rb") as f:
+        with open(Path(__file__).parent.parent / "pyproject.toml", "rb") as f:
             self.version = tomllib.load(f)["project"]["version"]
 
         data_dir = Path(user_data_dir("deck-sempai"))
         self.state_file = data_dir / "state.json"
         self.media_dir = data_dir / "media"
 
-        frontends: dict[str, type[Frontend]] = {
-            "rich": RichConsoleFrontend,
-            "simple": SimpleConsoleFrontend,
+        self.frontends: dict[str, Frontend] = {
+            "rich": RichConsoleFrontend(),
         }
-        frontend_cls = frontends.get(self.config.app.frontend)
-        if not frontend_cls:
-            raise ValueError(f"Frontend '{self.config.app.frontend}' not found. Available frontends: {', '.join(frontends)}")
-        self.frontend = frontend_cls()
+        self.frontend: Frontend = self.frontends[self.config.app.frontend]
 
         # Integrations
         self.integrations : dict[str, Integration] = {}
@@ -134,17 +130,26 @@ class App:
                 file.unlink()
 
 
-    def _pick_deck(self, exporter: StorageExporter, prompt: str, extra_options: list[str] = ()) -> str | None:
+    def _deck_options(self, exporter: StorageExporter) -> tuple[list[str], list[str]] | None:
         try:
             names = sorted(exporter.get_decks())
         except DeckOpError as e:
             self.frontend.error(str(e))
             return None
 
-        options = [n + (self._CURRENT_DECK_SUFFIX if n == self.state.current_deck else "") for n in names]
-        options += list(extra_options)
+        suffixed = [n + (self._CURRENT_DECK_SUFFIX if n == self.state.current_deck else "") for n in names]
+        return names, suffixed
 
-        choice = self.frontend.choice(prompt, options)
+
+    def _pick_deck(self, exporter: StorageExporter, prompt: str, extra_options: list[str] = ()) -> str | None:
+        result = self._deck_options(exporter)
+        if result is None:
+            return None
+        names, suffixed = result
+
+        options = suffixed + list(extra_options)
+
+        choice = self.frontend.choice(prompt, options, abortable=False)
 
         if choice in extra_options:
             return choice
@@ -164,12 +169,16 @@ class App:
         if not exporter:
             return None
 
-        choice = self._pick_deck(exporter, "", [self._CREATE_NEW_DECK_OPTION])
+        choice = self._pick_deck(exporter, "", [self._CREATE_NEW_DECK_OPTION, self._DELETE_DECK_OPTION])
         if choice is None:
             return None
 
         if choice == self._CREATE_NEW_DECK_OPTION:
             self.create()
+            return None
+
+        if choice == self._DELETE_DECK_OPTION:
+            self.delete()
             return None
 
         return choice
@@ -196,19 +205,19 @@ class App:
 
     def _prompt_side(self, prompt: str = "") -> str:
         options = ["Front side", "Back side", "Both sides"]
-        choice = self.frontend.choice(prompt, options)
+        choice = self.frontend.choice(prompt, options, abortable=False)
         return {"Front side": "front", "Back side": "back", "Both sides": "front,back"}[choice]
 
 
     def _prompt_grammar_rules(self, prompt: str = "") -> str:
         options = [r.value for r in GrammarRule]
-        chosen = self.frontend.multi_choice(prompt, options)
+        chosen = self.frontend.choice_multi(prompt, options, abortable=False)
         return ",".join(chosen)
 
 
     def _prompt_translate_direction(self, prompt: str = "") -> str | None:
         options = ["Front → Back", "Back → Front", "Auto (detect per note)"]
-        choice = self.frontend.choice(prompt, options)
+        choice = self.frontend.choice(prompt, options, abortable=False)
         return {"Front → Back": "front:back", "Back → Front": "back:front", "Auto (detect per note)": None}[choice]
 
 
@@ -216,7 +225,7 @@ class App:
         languages = [l for l in Language if l != Language.NONE]
         options = [f"{l.value} ({l.short()})" for l in languages]
         while True:
-            answer = self.frontend.choice(prompt, options)
+            answer = self.frontend.choice(prompt, options, abortable=False)
             if answer in options:
                 return languages[options.index(answer)]
             try:
@@ -225,8 +234,29 @@ class App:
                 self.frontend.error(f"Unknown language '{answer}'.")
 
 
+    def _confirm(self, prompt: str) -> bool:
+        return self.frontend.choice(prompt, ["Yes", "No"], abortable=False) == "Yes"
+
+
+    # Plain y/n confirmation for a command run non-interactively (its own argument was given
+    # directly) — unlike _confirm() above, this keeps the plain input() prompt, matching whatever
+    # argument-less interactive fallback would otherwise have used choice() for. Callers compute
+    # whether they're in the interactive case themselves and pick between this and _confirm().
+    def _confirm_plain(self, prompt: str) -> bool:
+        return self.frontend.input(f"{prompt} (y - yes, n - no)\n").lower() == "y"
+
+
+    def _preview_confirm(self, prompt: str, deck: Deck, result: DeckOpResult = None) -> bool:
+        return self.frontend.preview(prompt, deck, result)
+
+
+    def _preview_confirm_choice(self, prompt: str, deck: Deck, result: DeckOpResult = None) -> bool:
+        self.frontend.deck(deck, result, include_header=False)
+        return self.frontend.choice(prompt, ["Yes", "No"], abortable=False) == "Yes"
+
+
     def _prompt_deck_metadata(self) -> dict:
-        is_language_deck = self.frontend.input("Is it a deck for language learning? (y - yes, n - no)\n").lower() == "y"
+        is_language_deck = self._confirm("Is it a deck for language learning?")
         if is_language_deck:
             lang_front = self._prompt_language("Front side language:")
             lang_back = self._prompt_language("Back side language:")
@@ -242,10 +272,10 @@ class App:
 
         deck = Deck(name)
         deck.meta.update(metadata)
-        self.frontend.show_deck_name(deck.name)
-        self.frontend.show_deck_metadata(deck.meta)
+        self.frontend.deck_name(deck.name)
+        self.frontend.deck_meta(deck.meta)
 
-        if self.frontend.input("Do you want to create this deck? (y - yes, n - no)\n").lower() != "y":
+        if not self._confirm("Do you want to create this deck?"):
             return None
 
         return name, metadata
@@ -278,9 +308,9 @@ class App:
 
         self.state.current_deck = name
         self._save_state()
-        self.frontend.show_deck_name(self.state.current_deck)
+        self.frontend.deck_name(self.state.current_deck)
         if metadata:
-            self.frontend.show_deck_metadata(deck.meta)
+            self.frontend.deck_meta(deck.meta)
 
 
     def delete(self, name: str = None):
@@ -288,12 +318,14 @@ class App:
         if not exporter:
             return
 
+        interactive = not name
         if not name:
             name = self._pick_deck(exporter, "")
             if not name:
                 return
 
-        if self.frontend.input(f"Delete deck '{name}' and all its notes? This can't be undone. (y - yes, n - no)\n").lower() != "y":
+        confirm = self._confirm if interactive else self._confirm_plain
+        if not confirm(f"Delete deck '{name}' and all its notes? This can't be undone."):
             return
 
         try:
@@ -314,10 +346,10 @@ class App:
 
         preview_meta = DeckMeta(deck.meta.to_dict())
         preview_meta.update(metadata)
-        self.frontend.show_deck_name(deck.name)
-        self.frontend.show_deck_metadata(preview_meta)
+        self.frontend.deck_name(deck.name)
+        self.frontend.deck_meta(preview_meta)
 
-        if self.frontend.input("Do you want to save these changes? (y - yes, n - no)\n").lower() != "y":
+        if not self._confirm("Do you want to save these changes?"):
             return None
 
         return metadata
@@ -334,7 +366,7 @@ class App:
 
             deck.meta.update(kwargs)
 
-            self.frontend.show_deck_metadata(deck.meta)
+            self.frontend.deck_meta(deck.meta)
 
             self._save_deck(deck)
         except DeckOpError as e:
@@ -350,7 +382,7 @@ class App:
         try:
             deck: Deck = self._load_deck()
             result: DeckOpResult = self.exporters[exporter].export_deck(deck, **kwargs)
-            self.frontend.show_deck(deck, result)
+            self.frontend.deck(deck, result)
         except DeckOpError as e:
             self.frontend.error(str(e))
             return
@@ -363,7 +395,7 @@ class App:
 
         try:
             imported: Deck = self.importers[importer].import_deck(**kwargs)
-            if self.frontend.preview("Do you want to add this? (y - yes, n - no)\n", imported).lower() == "y":
+            if self._preview_confirm("Do you want to add this?", imported):
                 deck: Deck = self._load_deck() + imported
                 self._save_deck(deck)
 
@@ -385,7 +417,7 @@ class App:
         return name, kwargs
 
 
-    def _add_notes(self, entries: list[tuple[str, str, str, str]]):
+    def _add_notes(self, entries: list[tuple[str, str, str, str]], interactive: bool):
         if not entries:
             return
 
@@ -421,7 +453,8 @@ class App:
                 except DeckOpError as e:
                     self.frontend.warning(f"{e.operator.__class__.__name__}: {e}")
 
-            if self.frontend.preview("Do you want to add this? (y - yes, n - no)\n", note_deck).lower() == "y":
+            confirm_preview = self._preview_confirm_choice if interactive else self._preview_confirm
+            if confirm_preview("Do you want to add this?", note_deck):
                 self._save_deck(deck + note_deck)
 
         except DeckOpError as e:
@@ -433,28 +466,28 @@ class App:
 
     def add(self, front: str = None, back: str = None, model: str = None, tags: str = None):
         if front or back:
-            self._add_notes([(front, back, model, tags)])
+            self._add_notes([(front, back, model, tags)], interactive=False)
             return
 
-        lines = self.frontend.input_multiline(
-            "Enter notes as 'FRONT; BACK; MODEL; TAGS' (FRONT or BACK required). Press Enter on an empty line to finish."
+        lines = self.frontend.input_multi(
+                "Input one card per line:", newline_hint="front text ; back text"
         )
         entries = [self._parse_add_line(line) for line in lines]
 
-        self._add_notes(entries)
+        self._add_notes(entries, interactive=True)
 
 
     def show(self):
         try:
             deck: Deck = self._load_deck()
-            self.frontend.show_deck(deck)
+            self.frontend.deck(deck)
 
         except DeckOpError as e:
             self.frontend.error(str(e))
             return
 
 
-    def transform(self, transformer: str, **kwargs):
+    def transform(self, transformer: str, interactive: bool = False, **kwargs):
         if transformer not in self.transformers:
             self.frontend.error(f"Transformer '{transformer}' not found. Available transformers: {', '.join(self.transformers.keys())}")
             return
@@ -462,7 +495,8 @@ class App:
         try:
             deck: Deck = self._load_deck()
             result: DeckOpResult = self.transformers[transformer].transform_deck(deck, **kwargs)
-            if self.frontend.preview("Do you want to save changes? (y - yes, n - no)\n", deck, result).lower() == "y":
+            confirm_preview = self._preview_confirm_choice if interactive else self._preview_confirm
+            if confirm_preview("Do you want to save changes?", deck, result):
                 self._save_deck(deck)
 
         except DeckOpError as e:
@@ -471,27 +505,32 @@ class App:
 
 
     def add_sound(self, side: str = None):
-        self.transform("add-sound", side=side or self._prompt_side())
+        interactive = not side
+        self.transform("add-sound", side=side or self._prompt_side(), interactive=interactive)
 
 
     def remove_sound(self, side: str = None):
-        self.transform("remove-sound", side=side or self._prompt_side())
+        interactive = not side
+        self.transform("remove-sound", side=side or self._prompt_side(), interactive=interactive)
 
         self._clear_temp_files()
 
 
     def add_grammar(self, rule: str = None, side: str = None):
+        interactive = not rule or not side
         self.transform(
             "add-grammar",
             rule=rule or self._prompt_grammar_rules("Grammar rule:"),
             side=side or self._prompt_side("Side:"),
+            interactive=interactive,
         )
 
 
     def translate(self, side: str = None):
+        interactive = not side
         if not side:
             side = self._prompt_translate_direction()
-        self.transform("translate", side=side)
+        self.transform("translate", side=side, interactive=interactive)
 
 
     def _repair_integration(self, integration: Integration):
@@ -502,7 +541,7 @@ class App:
         options = ["Retry connection", "Skip"]
         failures = 0
         while True:
-            choice = self.frontend.choice("", options)
+            choice = self.frontend.choice("", options, abortable=False)
             if choice == "Retry connection":
                 if integration.test_connection():
                     self.frontend.print(f"Success! '{integration.name}' connected.")
@@ -544,51 +583,3 @@ class App:
         for i in self.integrations.values():
             if i.status() == "disconnected":
                 self._repair_integration(i)
-
-
-    def interactive(self):
-        show_deck_option = "Show deck"
-        actions = {
-            show_deck_option: self.show,
-            "Switch deck": self.deck,
-            "Add cards": self.add,
-            "Add sound to cards": self.add_sound,
-            "Remove sound from cards": self.remove_sound,
-            "Add grammar help to cards (articles, plulars etc.)": self.add_grammar,
-            "Translate cards": self.translate,
-            "Create new deck": self.create,
-            "Delete deck": self.delete,
-        }
-
-        with self.frontend.fullscreen():
-            while True:
-                self.frontend.clear()
-                self._load_state()
-
-                try:
-                    current_deck = self._load_deck()
-                except DeckOpError as e:
-                    self.frontend.error(str(e))
-                    current_deck = Deck(self.state.current_deck)
-
-                self.frontend.status_bar(self.version, current_deck)
-
-                statuses = [s for s in (i.status() for i in self.integrations.values()) if s != "disabled"]
-                running = sum(1 for s in statuses if s == "running")
-                total = len(statuses)
-                menu_actions = dict(actions)
-                setup_option = None
-                if running < total:
-                    setup_option = f"Setup integrations ({running} of {total} running)"
-                    menu_actions = {setup_option: self.setup, **menu_actions}
-
-                try:
-                    choice = self.frontend.choice("", list(menu_actions.keys()), transient=True, abortable=False)
-
-                    menu_actions[choice]()
-
-                    if choice in (show_deck_option, setup_option):
-                        self.frontend.hint("Enter back")
-                        self.frontend.input("")
-                except InteractiveAbort:
-                    pass

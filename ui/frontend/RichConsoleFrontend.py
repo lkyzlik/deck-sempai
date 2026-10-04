@@ -1,5 +1,7 @@
 import sys
 import time
+from collections import deque
+from datetime import datetime
 from contextlib import AbstractContextManager, contextmanager
 from typing import Callable, Optional
 
@@ -109,6 +111,36 @@ class _FlowerBarColumn(ProgressColumn):
         )
 
 
+class _BodyProgress:
+    """A LoggerProgress that renders into a fullscreen RichConsoleFrontend's shared body instead
+    of managing its own Live — Rich only allows one Live per Console at a time, and the
+    session-long Live from fullscreen() is already active while this runs."""
+    def __init__(self, frontend: "RichConsoleFrontend"):
+        self._frontend = frontend
+        self._progress = Progress(
+            TextColumn("{task.description}", style=frontend.COLOR_PRIMARY),
+            _FlowerBarColumn(style=frontend.COLOR_PRIMARY),
+            _StyledMofNCompleteColumn(style=frontend.COLOR_PRIMARY),
+        )
+
+    def __enter__(self) -> "_BodyProgress":
+        self._frontend._append_body(self._progress)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._frontend._redraw()
+
+    def add_task(self, description: str, total: int) -> int:
+        task_id = self._progress.add_task(description, total=total)
+        self._frontend._redraw()
+        return task_id
+
+    def update(self, task_id: int, advance: int = 0, description: str = None):
+        kwargs = {} if description is None else {"description": description}
+        self._progress.update(task_id, advance=advance, **kwargs)
+        self._frontend._redraw()
+
+
 class RichConsoleFrontend:
     COLOR_PRIMARY = "#fae9c8"
     COLOR_SECONDARY = "#a8813a"
@@ -118,13 +150,39 @@ class RichConsoleFrontend:
     COLOR_WARNING = "yellow"
     COLOR_ERROR = "red"
 
+    _LOG_PREFIX = {"info": "Info: ", "warning": "Warning: ", "error": "Error: "}
+
+    # Fixed heights of the chrome regions that sandwich the body in fullscreen mode: the header
+    # (status_bar() + tab_bar(), each 1 line of content + 1 blank). The footer (log_window()) is
+    # 5 lines (separator + 4 log lines) when visible, or just 1 (the separator) when hidden via
+    # Ctrl+L — see _footer_lines().
+    _HEADER_LINES = 4
+    _FOOTER_LINES_VISIBLE = 5
+    _FOOTER_LINES_HIDDEN = 1
+
     def __init__(self, console: Console = Console()):
         self.console = console
-        # Set for the duration of fullscreen()'s `with` block — choice()/choice_multi()/
-        # input_multi()/deck() read this instead of taking a per-call flag, since the tabbed TUI
-        # chrome (Tab/Shift+Tab switches tabs, the matching hint text) is only active in
-        # fullscreen mode.
+        # Set for the duration of fullscreen()'s `with` block — every method below checks this
+        # to decide between its plain (own-Live-per-call, unchanged) behavior and the fullscreen
+        # behavior (render into the shared header/body/footer composition below instead).
         self._fullscreen = False
+        # The one Live that lives for the whole fullscreen() session (None outside it). Every
+        # fullscreen redraw goes through _redraw(), which updates this.
+        self._live: Optional[Live] = None
+        # header = status_bar()/tab_bar() content; body = accumulated widget output (appended to
+        # on non-transient completion, discarded on transient completion, wiped and replaced by
+        # a single entry by the preview widget); log_scroll = the footer's current scroll offset.
+        # All reset at the start of each fullscreen() session.
+        self._header: Group = Group()
+        self._header_status: Optional[Text] = None
+        self._header_tabs: Optional[Text] = None
+        self._body_parts: list = []
+        self._log_scroll = 0
+        self._log_visible = True
+        # info()/warning()/error() always record here (level, message, timestamp captured at log
+        # time); in fullscreen they skip the direct print and rely on log_window() to surface
+        # this instead.
+        self._log_buffer: deque[tuple[str, str, str]] = deque(maxlen=50)
 
 
     def _field_to_rich(self, field: Field):
@@ -136,6 +194,9 @@ class RichConsoleFrontend:
 
 
     def print(self, message: str):
+        if self._fullscreen:
+            self._append_body(Text(message, style=self.COLOR_PRIMARY))
+            return
         self.console.print(message, style=self.COLOR_PRIMARY)
 
 
@@ -147,20 +208,47 @@ class RichConsoleFrontend:
     @contextmanager
     def fullscreen(self) -> AbstractContextManager:
         self._fullscreen = True
+        self._header = Group()
+        self._header_status = None
+        self._header_tabs = None
+        self._body_parts = []
+        self._log_scroll = 0
+        self._log_visible = True
         try:
             with self.console.screen():
-                yield
+                with Live(self._compose_frame(), console=self.console, auto_refresh=False,
+                          transient=False) as live:
+                    self._live = live
+                    yield
         finally:
+            self._live = None
             self._fullscreen = False
 
 
     def clear(self):
+        if self._fullscreen:
+            self._body_parts = []
+            self._redraw()
+            return
         self.console.clear()
 
 
     def hint(self, message: str):
+        if self._fullscreen:
+            self._append_body(Group(Text(""), Text(message, style="italic " + self.COLOR_QUIET)))
+            return
         self.console.print()
         self.console.print(message, style="italic " + self.COLOR_QUIET)
+
+
+    def _rebuild_header(self):
+        parts = []
+        if self._header_status is not None:
+            parts += [self._header_status, Text("")]
+        if self._header_tabs is not None:
+            parts += [self._header_tabs, Text("")]
+        self._header = Group(*parts)
+        self._redraw()
 
 
     def status_bar(self, version: str, current_deck: Deck):
@@ -169,11 +257,23 @@ class RichConsoleFrontend:
         text.append(f" · v{version} · Current deck: ", style=self.COLOR_PRIMARY)
         text.append(current_deck.name, style=self.COLOR_PRIMARY + " bold")
         text.append(f" ({len(current_deck.notes)} cards)", style=self.COLOR_PRIMARY)
-        self.console.print(text)
-        self.console.print()
+        if not self._fullscreen:
+            self.console.print(text)
+            self.console.print()
+            return
+        self._header_status = text
+        self._rebuild_header()
+
+
+    @staticmethod
+    def _timestamp() -> str:
+        return datetime.now().strftime("%H:%M:%S")
 
 
     def info(self, message: str):
+        self._log_buffer.append(("info", message, self._timestamp()))
+        if self._fullscreen:
+            return
         text = Text()
         text.append("Info: ", style="bold " + self.COLOR_INFO)
         text.append(message, style=self.COLOR_INFO)
@@ -181,6 +281,9 @@ class RichConsoleFrontend:
 
 
     def error(self, message: str):
+        self._log_buffer.append(("error", message, self._timestamp()))
+        if self._fullscreen:
+            return
         text = Text()
         text.append("Error: ", style="bold " + self.COLOR_ERROR)
         text.append(message, style=self.COLOR_ERROR)
@@ -188,6 +291,9 @@ class RichConsoleFrontend:
 
 
     def warning(self, message: str):
+        self._log_buffer.append(("warning", message, self._timestamp()))
+        if self._fullscreen:
+            return
         text = Text()
         text.append("Warning: ", style="bold " + self.COLOR_WARNING)
         text.append(message, style=self.COLOR_WARNING)
@@ -195,12 +301,46 @@ class RichConsoleFrontend:
 
 
     def progress(self) -> LoggerProgress:
+        if self._fullscreen:
+            return _BodyProgress(self)
         return Progress(
             TextColumn("{task.description}", style=self.COLOR_PRIMARY),
             _FlowerBarColumn(style=self.COLOR_PRIMARY),
             _StyledMofNCompleteColumn(style=self.COLOR_PRIMARY),
             console=self.console
         )
+
+
+    def log_window(self, scroll_offset: int = 0) -> Group:
+        hint = "Ctrl+L show logs" if not self._log_visible else "PgUp/PgDn scroll · Ctrl+L hide logs"
+        width = self.console.width
+        trailing = 3
+        leading = max(0, width - len(hint) - trailing)
+        separator = Text("─" * leading, style=self.COLOR_QUIET, no_wrap=True, overflow="crop")
+        separator.append(hint, style="italic " + self.COLOR_QUIET)
+        separator.append("─" * trailing, style=self.COLOR_QUIET)
+
+        if not self._log_visible:
+            return Group(separator)
+
+        colors = {"info": self.COLOR_INFO, "warning": self.COLOR_WARNING, "error": self.COLOR_ERROR}
+        max_offset = max(0, len(self._log_buffer) - 4)
+        scroll_offset = max(0, min(scroll_offset, max_offset))
+        end = len(self._log_buffer) - scroll_offset
+        entries = list(self._log_buffer)[max(0, end - 4):end]
+
+        lines = [Text("") for _ in range(4 - len(entries))]
+        for level, message, timestamp in entries:
+            text = Text(no_wrap=True, overflow="crop")
+            text.append(timestamp + " ", style=self.COLOR_QUIET)
+            text.append(self._LOG_PREFIX[level], style="bold " + colors[level])
+            text.append(message, style=colors[level])
+            lines.append(text)
+        return Group(separator, *lines)
+
+
+    def _footer_lines(self) -> int:
+        return self._FOOTER_LINES_VISIBLE if self._log_visible else self._FOOTER_LINES_HIDDEN
 
 
     def deck_notes(self, deck: Deck, result: DeckOpResult = None, top_row: int = None, height: int = None,
@@ -317,6 +457,45 @@ class RichConsoleFrontend:
         """The terminal's current height in lines."""
         return self.console.size.height
 
+
+    def _available_body_height(self) -> int:
+        """How many lines a fullscreen widget's own content can use, below the persistent status
+        bar/tab bar and above the log window (more, while the log window is hidden)."""
+        return max(0, self.terminal_height() - self._HEADER_LINES - self._footer_lines())
+
+
+    def _redraw(self):
+        if self._live is not None:
+            self._live.update(self._compose_frame())
+            self._live.refresh()
+
+
+    def _append_body(self, renderable):
+        self._body_parts.append(renderable)
+        self._redraw()
+
+
+    def _compose_body(self, available: int) -> Group:
+        # Keeps the newest accumulated widgets that fit in `available` lines, dropping older ones
+        # whole (never mid-entry) once there's no more room — like a terminal that scrolls old
+        # content off the top while the newest stays put, so the footer below is never pushed.
+        kept = []
+        total = 0
+        for part in reversed(self._body_parts):
+            part_height = len(self.console.render_lines(part, self.console.options, pad=False))
+            if total + part_height > available:
+                break
+            kept.insert(0, part)
+            total += part_height
+        padding = [Text("") for _ in range(max(0, available - total))]
+        return Group(*kept, *padding)
+
+
+    def _compose_frame(self) -> Group:
+        body = self._compose_body(self._available_body_height())
+        return Group(self._header, body, self.log_window(self._log_scroll))
+
+
     def deck(self, deck: Deck, result: DeckOpResult = None, include_header: bool = True,
               top_row: int = None, max_top_row: int = None, height: int = None, col_width: int = 40,
               scrollable: bool = False, on_scroll: Callable[[int], None] = None):
@@ -325,22 +504,21 @@ class RichConsoleFrontend:
             self.deck_name(deck.name)
             self.deck_meta(deck.meta)
 
-        if not self._fullscreen and not scrollable:
+        if self._fullscreen:
+            return self._deck_fullscreen(deck, result, top_row, col_width, scrollable, on_scroll)
+
+        if not scrollable:
             self.console.print(self.deck_notes(deck, result, top_row, height, col_width))
             return
 
-        # Keeps a single Live region open and redraws just the table+hint in place, instead of the
-        # clear()+reprint the rest of interactive mode uses (which flickers on every keystroke).
+        # Scrollable outside fullscreen is a rare combo (no current caller uses it), kept for API
+        # completeness with its own short-lived Live, same as every widget used to work before.
         current_top_row = top_row or 1
         max_top_row = max_top_row or current_top_row
-        can_scroll = scrollable and max_top_row > 1
+        can_scroll = max_top_row > 1
         hint_parts = []
-        if self._fullscreen:
-            hint_parts.append("Enter refresh")
         if can_scroll:
             hint_parts.append("↑/↓ scroll")
-        if self._fullscreen:
-            hint_parts.append("Tab next tab")
         hint_parts.append("Ctrl+C exit")
         hint_text = " · ".join(hint_parts)
 
@@ -352,10 +530,6 @@ class RichConsoleFrontend:
         with Live(render(), console=self.console, auto_refresh=False, transient=False) as live:
             while True:
                 key = self._read_key()
-                if self._fullscreen and key in ("tab", "shift+tab"):
-                    raise TabSwitch(key)
-                if self._fullscreen and key == "enter":
-                    return
                 if can_scroll and key == "up" and current_top_row > 1:
                     current_top_row -= 1
                 elif can_scroll and key == "down" and current_top_row < max_top_row:
@@ -372,20 +546,92 @@ class RichConsoleFrontend:
                 live.refresh()
 
 
-    def preview(self, prompt: str, deck: Deck, result: DeckOpResult = None, height: int = None) -> bool:
+    def _deck_fullscreen(self, deck: Deck, result: DeckOpResult, top_row: int, col_width: int,
+                          scrollable: bool, on_scroll: Callable[[int], None]):
+        # -3 reserves the blank line + hint line this entry adds below the table, plus 1 of
+        # slack so it doesn't exactly fill (and risk overflowing) the available body height.
+        height = max(1, self._available_body_height() - 3)
+
+        def fit_top_row(total: int) -> int:
+            if total == 0:
+                return 1
+            candidate_top = total
+            while candidate_top > 1:
+                candidate = candidate_top - 1
+                shown = self.deck_notes(deck, result, candidate, height).shown_notes
+                if candidate + shown - 1 < total:
+                    break
+                candidate_top = candidate
+            return candidate_top
+
+        max_top_row = fit_top_row(len(deck.notes)) if scrollable else 1
+        can_scroll = scrollable and max_top_row > 1
+        # No remembered position (first time showing this tab) defaults to the end of the deck;
+        # otherwise clamp in case the deck shrank/grew since the remembered position was set.
+        current_top_row = max_top_row if top_row is None else max(1, min(top_row, max_top_row))
+        if on_scroll:
+            on_scroll(current_top_row)
+
+        hint_parts = ["Enter refresh"]
+        if can_scroll:
+            hint_parts.append("↑/↓ scroll")
+        hint_parts += ["Tab next tab", "Ctrl+C exit"]
+        hint_text = " · ".join(hint_parts)
+
+        def render_entry() -> Group:
+            row = current_top_row if can_scroll else None
+            table = self.deck_notes(deck, result, row, height, col_width)
+            return Group(table, Text(""), Text(hint_text, style="italic " + self.COLOR_QUIET))
+
+        self._body_parts.append(render_entry())
+        self._redraw()
+        while True:
+            key = self._read_key()
+            if key in ("tab", "shift+tab"):
+                raise TabSwitch(key)
+            if key == "enter":
+                return
+            scrolled = False
+            if can_scroll and key == "up" and current_top_row > 1:
+                current_top_row -= 1
+                scrolled = True
+            elif can_scroll and key == "down" and current_top_row < max_top_row:
+                current_top_row += 1
+                scrolled = True
+            elif can_scroll and key == "home" and current_top_row > 1:
+                current_top_row = 1
+                scrolled = True
+            elif can_scroll and key == "end" and current_top_row < max_top_row:
+                current_top_row = max_top_row
+                scrolled = True
+            elif key == "pageup":
+                self._log_scroll = min(self._log_scroll + 1, max(0, len(self._log_buffer) - 4))
+            elif key == "pagedown":
+                self._log_scroll = max(0, self._log_scroll - 1)
+            elif key == "ctrl+l":
+                self._log_visible = not self._log_visible
+            else:
+                continue
+            if scrolled and on_scroll:
+                on_scroll(current_top_row)
+            self._body_parts[-1] = render_entry()
+            self._redraw()
+
+
+    def preview(self, prompt: str, deck: Deck, result: DeckOpResult = None) -> bool:
         if self._fullscreen:
-            return self._preview_fullscreen(prompt, deck, result, height)
+            return self._preview_fullscreen(prompt, deck, result)
         self.console.print(Text("Preview:", style=self.COLOR_PRIMARY + " bold"))
         self.deck(deck, result, include_header=False)
         return self.input(f"{prompt} (y - yes, n - no)\n").lower() == "y"
 
 
-    def _preview_fullscreen(self, prompt: str, deck: Deck, result: DeckOpResult, height: int = None) -> bool:
-        # `height` is the content area already available to the caller (e.g. below an on-screen
-        # status bar / tab bar) — we reserve our own "Preview:"/blank/prompt/blank/hint lines
-        # from it, plus 1 of slack so the table doesn't push that trailing hint off-screen.
-        height = height if height is not None else self.terminal_height()
-        height = max(1, height - 6)
+    def _preview_fullscreen(self, prompt: str, deck: Deck, result: DeckOpResult) -> bool:
+        # The preview takes over the whole body, replacing whatever was accumulated before it.
+        self._body_parts = []
+        # -6 reserves "Preview:"/blank/prompt/blank/hint (5 lines) plus 1 of slack so the entry
+        # doesn't exactly fill (and risk overflowing) the available body height.
+        table_height = max(1, self._available_body_height() - 6)
 
         def fit_top_row(total: int) -> int:
             if total == 0:
@@ -393,7 +639,7 @@ class RichConsoleFrontend:
             top_row = total
             while top_row > 1:
                 candidate = top_row - 1
-                shown = self.deck_notes(deck, result, candidate, height).shown_notes
+                shown = self.deck_notes(deck, result, candidate, table_height).shown_notes
                 if candidate + shown - 1 < total:
                     break
                 top_row = candidate
@@ -409,37 +655,56 @@ class RichConsoleFrontend:
         hint_parts += ["Tab next tab", "Ctrl+C exit"]
         hint_text = " · ".join(hint_parts)
 
-        def render() -> Group:
+        def render_entry() -> Group:
             row = current_top_row if can_scroll else None
-            table = self.deck_notes(deck, result, row, height)
+            table = self.deck_notes(deck, result, row, table_height)
             return Group(Text("Preview:", style=self.COLOR_PRIMARY + " bold"), table, Text(""),
                          Text(prompt, style="italic " + self.COLOR_PRIMARY),
                          Text(""), Text(hint_text, style="italic " + self.COLOR_QUIET))
 
-        with Live(render(), console=self.console, auto_refresh=False, transient=False) as live:
-            while True:
-                key = self._read_key()
-                if key in ("tab", "shift+tab"):
-                    raise TabSwitch(key)
-                if key == "enter":
-                    return True
-                if key == "backspace":
-                    return False
-                if can_scroll and key == "up" and current_top_row > 1:
-                    current_top_row -= 1
-                elif can_scroll and key == "down" and current_top_row < max_top_row:
-                    current_top_row += 1
-                elif can_scroll and key == "home" and current_top_row > 1:
-                    current_top_row = 1
-                elif can_scroll and key == "end" and current_top_row < max_top_row:
-                    current_top_row = max_top_row
-                else:
-                    continue
-                live.update(render())
-                live.refresh()
+        self._body_parts = [render_entry()]
+        self._redraw()
+        while True:
+            key = self._read_key()
+            if key in ("tab", "shift+tab"):
+                raise TabSwitch(key)
+            if key == "enter":
+                return True
+            if key == "backspace":
+                return False
+            if can_scroll and key == "up" and current_top_row > 1:
+                current_top_row -= 1
+            elif can_scroll and key == "down" and current_top_row < max_top_row:
+                current_top_row += 1
+            elif can_scroll and key == "home" and current_top_row > 1:
+                current_top_row = 1
+            elif can_scroll and key == "end" and current_top_row < max_top_row:
+                current_top_row = max_top_row
+            elif key == "pageup":
+                self._log_scroll = min(self._log_scroll + 1, max(0, len(self._log_buffer) - 4))
+            elif key == "pagedown":
+                self._log_scroll = max(0, self._log_scroll - 1)
+            elif key == "ctrl+l":
+                self._log_visible = not self._log_visible
+            else:
+                continue
+            self._body_parts[-1] = render_entry()
+            self._redraw()
 
 
     def input(self, prompt: str) -> str:
+        if self._fullscreen and self._live is not None:
+            # input() needs cooked/line-buffered stdin, a different mode than the raw keypress
+            # reading every other fullscreen widget uses — pause the shared Live for the
+            # duration of this one blocking call instead of trying to mix the two.
+            self._live.stop()
+            try:
+                self.console.print(prompt, style="italic " + self.COLOR_PRIMARY, end="")
+                result = input()
+            finally:
+                self._live.start()
+                self._redraw()
+            return result
         self.console.print(prompt, style="italic " + self.COLOR_PRIMARY, end="")
         return input()
 
@@ -490,12 +755,17 @@ class RichConsoleFrontend:
 
 
     def input_multi(self, prompt: str, newline_hint: str = None) -> list[str]:
-        if prompt:
-            self.console.print(prompt, style="italic " + self.COLOR_PRIMARY)
-
         can_read_keys = msvcrt or (termios and tty)
         if not sys.stdin.isatty() or not can_read_keys:
+            if prompt:
+                self.console.print(prompt, style="italic " + self.COLOR_PRIMARY)
             return self._input_multi_by_input()
+
+        if self._fullscreen:
+            return self._input_multi_fullscreen(prompt, newline_hint)
+
+        if prompt:
+            self.console.print(prompt, style="italic " + self.COLOR_PRIMARY)
 
         lines = [""]
         row = 0
@@ -504,9 +774,7 @@ class RichConsoleFrontend:
                   auto_refresh=False, transient=False) as live:
             while True:
                 key = self._read_key()
-                if self._fullscreen and key in ("tab", "shift+tab"):
-                    raise TabSwitch(key)
-                elif key == "left":
+                if key == "left":
                     if col > 0:
                         col -= 1
                     elif row > 0:
@@ -561,24 +829,100 @@ class RichConsoleFrontend:
         return [line for line in lines if line]
 
 
+    def _input_multi_fullscreen(self, prompt: str, newline_hint: str) -> list[str]:
+        if prompt:
+            self._append_body(Text(prompt, style="italic " + self.COLOR_PRIMARY))
+
+        lines = [""]
+        row = 0
+        col = 0
+        self._body_parts.append(self._render_input_multi(lines, row, col, newline_hint))
+        self._redraw()
+        while True:
+            key = self._read_key()
+            if key in ("tab", "shift+tab"):
+                raise TabSwitch(key)
+            elif key == "pageup":
+                self._log_scroll = min(self._log_scroll + 1, max(0, len(self._log_buffer) - 4))
+            elif key == "pagedown":
+                self._log_scroll = max(0, self._log_scroll - 1)
+            elif key == "ctrl+l":
+                self._log_visible = not self._log_visible
+            elif key == "left":
+                if col > 0:
+                    col -= 1
+                elif row > 0:
+                    row -= 1
+                    col = len(lines[row])
+                else:
+                    continue
+            elif key == "right":
+                if col < len(lines[row]):
+                    col += 1
+                elif row < len(lines) - 1:
+                    row += 1
+                    col = 0
+                else:
+                    continue
+            elif key == "up" and row > 0:
+                row -= 1
+                col = min(col, len(lines[row]))
+            elif key == "down" and row < len(lines) - 1:
+                row += 1
+                col = min(col, len(lines[row]))
+            elif key == "backspace":
+                if col > 0:
+                    lines[row] = lines[row][:col - 1] + lines[row][col:]
+                    col -= 1
+                elif row > 0:
+                    col = len(lines[row - 1])
+                    lines[row - 1] += lines[row]
+                    del lines[row]
+                    row -= 1
+                else:
+                    continue
+            elif key == "enter":
+                if row == len(lines) - 1 and not lines[row]:
+                    del lines[row]
+                    break
+                lines.insert(row + 1, lines[row][col:])
+                lines[row] = lines[row][:col]
+                row += 1
+                col = 0
+            elif key is not None and len(key) == 1 and key.isprintable():
+                lines[row] = lines[row][:col] + key + lines[row][col:]
+                col += 1
+            else:
+                continue
+            self._body_parts[-1] = self._render_input_multi(lines, row, col, newline_hint)
+            self._redraw()
+
+        self._body_parts[-1] = self._render_input_multi(lines, row, col, newline_hint, show_hint=False)
+        self._redraw()
+        return [line for line in lines if line]
+
+
     def _read_key(self) -> Optional[str]:
-        """Reads a single keypress, returning "up"/"down"/"left"/"right"/"home"/"end"/"tab"/
-        "shift+tab"/"enter"/"backspace", a single printable character, or None for anything else
-        (ignored). Raises KeyboardInterrupt on Ctrl+C, since raw mode otherwise swallows it
-        instead of raising SIGINT."""
+        """Reads a single keypress, returning "up"/"down"/"left"/"right"/"home"/"end"/"pageup"/
+        "pagedown"/"tab"/"shift+tab"/"enter"/"backspace"/"ctrl+l", a single printable character,
+        or None for anything else (ignored). Raises KeyboardInterrupt on Ctrl+C, since raw mode
+        otherwise swallows it instead of raising SIGINT."""
         if msvcrt:
             ch = msvcrt.getch()
             if ch == b"\x03":
                 raise KeyboardInterrupt
             if ch in (b"\x00", b"\xe0"):
                 return {b"H": "up", b"P": "down", b"M": "right", b"K": "left",
-                        b"G": "home", b"O": "end", b"\x0f": "shift+tab"}.get(msvcrt.getch())
+                        b"G": "home", b"O": "end", b"I": "pageup", b"Q": "pagedown",
+                        b"\x0f": "shift+tab"}.get(msvcrt.getch())
             if ch in (b"\r", b"\n"):
                 return "enter"
             if ch == b"\x08":
                 return "backspace"
             if ch == b"\t":
                 return "tab"
+            if ch == b"\x0c":
+                return "ctrl+l"
             try:
                 decoded = ch.decode()
             except UnicodeDecodeError:
@@ -595,14 +939,33 @@ class RichConsoleFrontend:
             if ch == "\x1b":
                 if sys.stdin.read(1) != "[":
                     return None
-                return {"A": "up", "B": "down", "C": "right", "D": "left",
-                        "H": "home", "F": "end", "Z": "shift+tab"}.get(sys.stdin.read(1))
+                # CSI sequences for plain arrows/home/end are a single final letter (e.g. "A");
+                # PageUp/PageDown add digits before a "~" terminator (e.g. "5~"). Accumulate
+                # digits until a non-digit arrives, so either shape is fully consumed from stdin
+                # (leaving a partial sequence unread would corrupt the next _read_key() call).
+                digits = ""
+                for _ in range(4):
+                    c = sys.stdin.read(1)
+                    if c.isdigit():
+                        digits += c
+                        continue
+                    break
+                else:
+                    return None
+                if c == "~":
+                    return {"5": "pageup", "6": "pagedown"}.get(digits)
+                if not digits:
+                    return {"A": "up", "B": "down", "C": "right", "D": "left",
+                            "H": "home", "F": "end", "Z": "shift+tab"}.get(c)
+                return None
             if ch in ("\r", "\n"):
                 return "enter"
             if ch in ("\x7f", "\x08"):
                 return "backspace"
             if ch == "\t":
                 return "tab"
+            if ch == "\x0c":
+                return "ctrl+l"
             return ch if ch.isprintable() else None
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
@@ -666,12 +1029,17 @@ class RichConsoleFrontend:
 
     def choice(self, prompt: str, options: list[str], transient: bool = False,
                abortable: bool = True) -> Optional[str]:
-        if prompt:
-            self.console.print(prompt, style="italic " + self.COLOR_PRIMARY)
-
         can_read_keys = msvcrt or (termios and tty)
         if not sys.stdin.isatty() or not can_read_keys:
+            if prompt:
+                self.console.print(prompt, style="italic " + self.COLOR_PRIMARY)
             return self._choice_by_input(options)
+
+        if self._fullscreen:
+            return self._choice_fullscreen(prompt, options, transient, abortable)
+
+        if prompt:
+            self.console.print(prompt, style="italic " + self.COLOR_PRIMARY)
 
         selected = 0
         with Live(self._render_choice(options, selected, abortable=abortable), console=self.console,
@@ -680,8 +1048,6 @@ class RichConsoleFrontend:
                 key = self._read_key()
                 if key == "backspace" and abortable:
                     raise InteractiveAbort
-                elif self._fullscreen and key in ("tab", "shift+tab"):
-                    raise TabSwitch(key)
                 elif options and key == "up":
                     selected = (selected - 1) % len(options)
                 elif options and key == "down":
@@ -700,6 +1066,48 @@ class RichConsoleFrontend:
                 live.update(self._render_choice(options, selected, show_hint=False))
                 live.refresh()
 
+        return options[selected] if options else None
+
+
+    def _choice_fullscreen(self, prompt: str, options: list[str], transient: bool,
+                            abortable: bool) -> Optional[str]:
+        if prompt:
+            self._append_body(Text(prompt, style="italic " + self.COLOR_PRIMARY))
+
+        selected = 0
+        self._body_parts.append(self._render_choice(options, selected, abortable=abortable))
+        self._redraw()
+        while True:
+            key = self._read_key()
+            if key == "backspace" and abortable:
+                raise InteractiveAbort
+            elif key in ("tab", "shift+tab"):
+                raise TabSwitch(key)
+            elif options and key == "up":
+                selected = (selected - 1) % len(options)
+            elif options and key == "down":
+                selected = (selected + 1) % len(options)
+            elif key == "enter":
+                break
+            elif options and key is not None and key.isdigit() and key != "0" and int(key) <= len(options):
+                selected = int(key) - 1
+                break
+            elif key == "pageup":
+                self._log_scroll = min(self._log_scroll + 1, max(0, len(self._log_buffer) - 4))
+            elif key == "pagedown":
+                self._log_scroll = max(0, self._log_scroll - 1)
+            elif key == "ctrl+l":
+                self._log_visible = not self._log_visible
+            else:
+                continue
+            self._body_parts[-1] = self._render_choice(options, selected, abortable=abortable)
+            self._redraw()
+
+        if transient:
+            self._body_parts.pop()
+        else:
+            self._body_parts[-1] = self._render_choice(options, selected, show_hint=False)
+        self._redraw()
         return options[selected] if options else None
 
 
@@ -755,12 +1163,17 @@ class RichConsoleFrontend:
 
     def choice_multi(self, prompt: str, options: list[str], transient: bool = False,
                       abortable: bool = True) -> list[str]:
-        if prompt:
-            self.console.print(prompt, style="italic " + self.COLOR_PRIMARY)
-
         can_read_keys = msvcrt or (termios and tty)
         if not sys.stdin.isatty() or not can_read_keys:
+            if prompt:
+                self.console.print(prompt, style="italic " + self.COLOR_PRIMARY)
             return self._choice_multi_by_input(options)
+
+        if self._fullscreen:
+            return self._choice_multi_fullscreen(prompt, options, transient, abortable)
+
+        if prompt:
+            self.console.print(prompt, style="italic " + self.COLOR_PRIMARY)
 
         selected = 0
         checked: set[int] = set()
@@ -770,8 +1183,6 @@ class RichConsoleFrontend:
                 key = self._read_key()
                 if key == "backspace" and abortable:
                     raise InteractiveAbort
-                elif self._fullscreen and key in ("tab", "shift+tab"):
-                    raise TabSwitch(key)
                 elif key == "up":
                     selected = (selected - 1) % len(options)
                 elif key == "down":
@@ -796,6 +1207,52 @@ class RichConsoleFrontend:
         return [options[i] for i in sorted(checked)]
 
 
+    def _choice_multi_fullscreen(self, prompt: str, options: list[str], transient: bool,
+                                  abortable: bool) -> list[str]:
+        if prompt:
+            self._append_body(Text(prompt, style="italic " + self.COLOR_PRIMARY))
+
+        selected = 0
+        checked: set[int] = set()
+        self._body_parts.append(self._render_choice_multi(options, selected, checked, abortable=abortable))
+        self._redraw()
+        while True:
+            key = self._read_key()
+            if key == "backspace" and abortable:
+                raise InteractiveAbort
+            elif key in ("tab", "shift+tab"):
+                raise TabSwitch(key)
+            elif key == "up":
+                selected = (selected - 1) % len(options)
+            elif key == "down":
+                selected = (selected + 1) % len(options)
+            elif key == " ":
+                checked ^= {selected}
+            elif key == "enter":
+                if checked:
+                    break
+                continue
+            elif key is not None and key.isdigit() and key != "0" and int(key) <= len(options):
+                checked ^= {int(key) - 1}
+            elif key == "pageup":
+                self._log_scroll = min(self._log_scroll + 1, max(0, len(self._log_buffer) - 4))
+            elif key == "pagedown":
+                self._log_scroll = max(0, self._log_scroll - 1)
+            elif key == "ctrl+l":
+                self._log_visible = not self._log_visible
+            else:
+                continue
+            self._body_parts[-1] = self._render_choice_multi(options, selected, checked, abortable=abortable)
+            self._redraw()
+
+        if transient:
+            self._body_parts.pop()
+        else:
+            self._body_parts[-1] = self._render_choice_multi(options, selected, checked, show_hint=False)
+        self._redraw()
+        return [options[i] for i in sorted(checked)]
+
+
     def _render_tabs(self, tab_names: list[str], current_tab: int) -> Text:
         text = Text()
         for i, name in enumerate(tab_names):
@@ -809,38 +1266,60 @@ class RichConsoleFrontend:
 
 
     def tab_bar(self, tab_names: list[str], current_tab: int):
-        self.console.print(self._render_tabs(tab_names, current_tab))
-        self.console.print()
+        tabs = self._render_tabs(tab_names, current_tab)
+        if not self._fullscreen:
+            self.console.print(tabs)
+            self.console.print()
+            return
+        self._header_tabs = tabs
+        self._rebuild_header()
 
 
     def integrations(self, rows: list[tuple[str, str, Optional[str]]]):
         need_fix = sum(1 for _, _, help_text in rows if help_text)
+        parts = []
 
         if need_fix:
-            self.console.print(Text(f"{need_fix} integrations need repair", style=self.COLOR_WARNING + " bold"))
-            self.console.print()
+            parts.append(Text(f"{need_fix} integrations need repair", style=self.COLOR_WARNING + " bold"))
+            parts.append(Text(""))
 
         for name, status, help_text in rows:
             line = Text()
             line.append(f"{name}: ", style=self.COLOR_PRIMARY + " bold")
             line.append(status, style=self.COLOR_PRIMARY)
-            self.console.print(line)
+            parts.append(line)
             if help_text:
-                self.console.print(Text(f"Repair steps: {help_text}", style=self.COLOR_QUIET))
+                parts.append(Text(f"Repair steps: {help_text}", style=self.COLOR_QUIET))
+
+        if self._fullscreen:
+            self._append_body(Group(*parts))
+            return
+        for part in parts:
+            self.console.print(part)
 
 
     def deck_meta(self, meta: DeckMeta):
         items = list(meta.to_dict().items())
+        lines = []
         for i, (key, value) in enumerate(items):
             branch = "├─ " if i < len(items) - 1 else "└─ "
             text = Text()
             text.append(f"{branch}{key}: ", style=self.COLOR_SECONDARY + " bold")
             text.append(str(value), style=self.COLOR_SECONDARY)
-            self.console.print(text)
+            lines.append(text)
+
+        if self._fullscreen:
+            self._append_body(Group(*lines))
+            return
+        for line in lines:
+            self.console.print(line)
 
 
     def deck_name(self, name: str):
         text = Text()
         text.append("Deck: ", style=self.COLOR_PRIMARY + " bold")
         text.append(name, style=self.COLOR_PRIMARY)
+        if self._fullscreen:
+            self._append_body(text)
+            return
         self.console.print(text)

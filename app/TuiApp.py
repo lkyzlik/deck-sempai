@@ -1,5 +1,3 @@
-from typing import Callable
-
 from app.App import App
 from Deck import Deck
 from DeckOperator import DeckOpError, DeckOpResult
@@ -12,40 +10,9 @@ from ui.frontend.TuiFrontend import TabSwitch, TuiFrontend
 class TuiApp(App):
     """Adds the full-screen tabbed TUI on top of App's plain CLI commands."""
 
-    # Lines taken up by status_bar() + tab_bar() + hint(), plus 1 of slack so a full-height tab
-    # doesn't scroll the status bar off-screen.
-    _CHROME_LINES = 7
-
-    # Lines taken up by status_bar() + tab_bar() alone — for callees (preview()'s fullscreen
-    # branch) that reserve their own trailing chrome instead of a single hint() line.
-    _STATUS_TAB_LINES = 4
-
     def __init__(self):
         super().__init__()
         self._show_top_row = None
-        # Mirrors what tui()'s loop last drew, so _preview_confirm_choice() can redraw the same
-        # status bar/tab bar chrome before a preview takes over the rest of the screen.
-        self._tab_names: list[str] = []
-        self._current_tab = 0
-
-
-    @staticmethod
-    def _fit_top_row(total: int, height: int, pack: Callable[[int, int], object]) -> int:
-        """Given `total` 1-indexed items packable a window at a time via `pack(top_row, height)`
-        (returning an object with a `shown_notes` attribute counting how many items it actually fit,
-        distinct from padding), returns the largest top_row — the smallest possible trailing window —
-        whose packing still reaches `total`. Returns 1 if there's nothing to scroll (empty range)."""
-        if total == 0:
-            return 1
-
-        top_row = total
-        while top_row > 1:
-            candidate = top_row - 1
-            shown = pack(candidate, height).shown_notes
-            if candidate + shown - 1 < total:
-                break
-            top_row = candidate
-        return top_row
 
 
     def _load_deck_safe(self) -> Deck:
@@ -116,39 +83,21 @@ class TuiApp(App):
                 self.frontend.error(f"Unknown language '{answer}'.")
 
 
-    # In fullscreen, the deck preview wipes whatever the current tab has printed so far, redraws
-    # the status bar/tab bar, and takes over the rest of the screen (scrollable, Enter accepts,
-    # Backspace discards) instead of App's plain deck()+Yes/No choice().
+    # In fullscreen, the deck preview takes over the whole body (scrollable, Enter accepts,
+    # Backspace discards) instead of App's plain deck()+Yes/No choice() — status bar/tab bar
+    # stay put since preview() renders into the same persistent header/body/footer layout.
     def _preview_confirm_choice(self, prompt: str, deck: Deck, result: DeckOpResult = None) -> bool:
         if not self.frontend.is_fullscreen:
             return super()._preview_confirm_choice(prompt, deck, result)
-        self.frontend.clear()
-        self.frontend.status_bar(self.version, self._load_deck_safe())
-        self.frontend.tab_bar(self._tab_names, self._current_tab)
-        height = max(1, self.frontend.terminal_height() - self._STATUS_TAB_LINES)
-        return self.frontend.preview(prompt, deck, result, height=height)
+        return self.frontend.preview(prompt, deck, result)
 
 
     def _tab_show(self, tab_names: list[str], current_tab: int, current_deck: Deck) -> tuple[int, Deck]:
-        total = len(current_deck.notes)
-        height = max(1, self.frontend.terminal_height() - self._CHROME_LINES)
-
-        def pack(top_row: int, h: int):
-            return self.frontend.deck_notes(current_deck, top_row=top_row, height=h)
-
-        max_top_row = self._fit_top_row(total, height, pack)
-        if self._show_top_row is None:
-            self._show_top_row = max_top_row
-        else:
-            # Clamp in case the deck shrank (or grew) since the remembered position was set.
-            self._show_top_row = max(1, min(self._show_top_row, max_top_row))
-
         def remember(row: int):
             self._show_top_row = row
 
         self.frontend.deck(current_deck, include_header=False, top_row=self._show_top_row,
-                           max_top_row=max_top_row, height=height, scrollable=True,
-                           on_scroll=remember)
+                           scrollable=True, on_scroll=remember)
         return current_tab, self._load_deck_safe()
 
 
@@ -246,7 +195,6 @@ class TuiApp(App):
                 if any(status == "disconnected" for status in statuses.values()):
                     tab_names[TAB_INTEGRATIONS] = "Integrations (!)"
                 self.frontend.tab_bar(tab_names, current_tab)
-                self._tab_names, self._current_tab = tab_names, current_tab
 
                 try:
                     if current_tab == TAB_SHOW:

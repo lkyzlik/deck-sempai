@@ -51,13 +51,12 @@ class TuiFrontend(Frontend, Protocol):
     def terminal_height(self) -> int:
         ...
 
+    def log_window(self, scroll_offset: int = 0) -> object:
+        ...
+
     def deck(self, deck: Deck, result: DeckOpResult = None, include_header: bool = True,
              top_row: int = None, max_top_row: int = None, height: int = None, col_width: int = 40,
              scrollable: bool = False, on_scroll: Callable[[int], None] = None):
-        ...
-
-    def preview(self, prompt: str, deck: Deck, result: DeckOpResult = None,
-                height: int = None) -> bool:
         ...
 
     def choice(self, prompt: str, options: list[str], transient: bool = False,

@@ -9,9 +9,10 @@ from ui.frontend.Frontend import Frontend
 
 class TabSwitch(Exception):
     """Raised by TuiFrontend's choice()/choice_multi()/input_multi()/deck()/preview() (while the
-    frontend is in fullscreen mode) when Tab or Shift+Tab is pressed. `key` is "tab" or
-    "shift+tab". Only TuiApp's tabbed loop catches this, so it lives with TuiFrontend rather than
-    the plain Frontend."""
+    frontend is in fullscreen mode) when Tab/Shift+Tab is pressed, or Left/Right is pressed and
+    not consumed by the active widget. `key` is "tab"/"right" (next tab) or "shift+tab"/"left"
+    (previous tab). Only TuiApp's tabbed loop catches this, so it lives with TuiFrontend rather
+    than the plain Frontend."""
     def __init__(self, key: str):
         self.key = key
 
@@ -35,7 +36,7 @@ class TuiFrontend(Frontend, Protocol):
     def hint(self, message: str):
         ...
 
-    def status_bar(self, version: str, current_deck: Deck):
+    def status_bar(self, version: str, current_deck: Deck, load_failed: bool = False):
         ...
 
     def tab_bar(self, tab_names: list[str], current_tab: int):

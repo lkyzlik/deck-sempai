@@ -144,13 +144,20 @@ class _BodyProgress:
 class RichConsoleFrontend:
     COLOR_PRIMARY = "#fae9c8"
     COLOR_SECONDARY = "#a8813a"
-    COLOR_ACCENT = "#a14d33"
+    COLOR_ACCENT = "magenta"
     COLOR_QUIET = "grey50"
     COLOR_INFO = "blue"
     COLOR_WARNING = "yellow"
     COLOR_ERROR = "red"
+    COLOR_SUCCESS = "green"
 
     _LOG_PREFIX = {"info": "Info: ", "warning": "Warning: ", "error": "Error: "}
+
+    _INTEGRATION_STATUS_STYLE = {
+        "running": ("●", COLOR_SUCCESS),
+        "disconnected": ("✗", COLOR_ERROR),
+        "disabled": ("–", COLOR_QUIET),
+    }
 
     # Fixed heights of the chrome regions that sandwich the body in fullscreen mode: the header
     # (status_bar() + tab_bar(), each 1 line of content + 1 blank). The footer (log_window()) is
@@ -189,7 +196,7 @@ class RichConsoleFrontend:
         text = Text()
         text.append(field.get_text_oneline())
         for sound in field.sounds:
-            text.append(Text(" [♪]", style=self.COLOR_ACCENT))
+            text.append(Text(" [♪]"))
         return text
 
 
@@ -251,12 +258,13 @@ class RichConsoleFrontend:
         self._redraw()
 
 
-    def status_bar(self, version: str, current_deck: Deck):
+    def status_bar(self, version: str, current_deck: Deck, load_failed: bool = False):
         text = Text()
         text.append("Deck Sempai", style=self.COLOR_PRIMARY + " bold")
         text.append(f" · v{version} · Current deck: ", style=self.COLOR_PRIMARY)
         text.append(current_deck.name, style=self.COLOR_PRIMARY + " bold")
-        text.append(f" ({len(current_deck.notes)} cards)", style=self.COLOR_PRIMARY)
+        cards = "?" if load_failed else len(current_deck.notes)
+        text.append(f" ({cards} cards)", style=self.COLOR_PRIMARY)
         if not self._fullscreen:
             self.console.print(text)
             self.console.print()
@@ -344,7 +352,7 @@ class RichConsoleFrontend:
 
 
     def deck_notes(self, deck: Deck, result: DeckOpResult = None, top_row: int = None, height: int = None,
-                   col_width: int = 40) -> Table:
+                   col_width: int = 30) -> Table:
         notes = deck.notes
         total = len(notes)
 
@@ -374,7 +382,7 @@ class RichConsoleFrontend:
         table.add_column("☖ Front", width=col_width)
         table.add_column("☗ Back", width=col_width)
         if result:
-            table.add_column(result.op_title)
+            table.add_column("Result")
 
         num_columns = sum([show_index, 1, 1, bool(result)])
 
@@ -497,7 +505,7 @@ class RichConsoleFrontend:
 
 
     def deck(self, deck: Deck, result: DeckOpResult = None, include_header: bool = True,
-              top_row: int = None, max_top_row: int = None, height: int = None, col_width: int = 40,
+              top_row: int = None, max_top_row: int = None, height: int = None, col_width: int = 30,
               scrollable: bool = False, on_scroll: Callable[[int], None] = None):
 
         if include_header:
@@ -587,7 +595,7 @@ class RichConsoleFrontend:
         self._redraw()
         while True:
             key = self._read_key()
-            if key in ("tab", "shift+tab"):
+            if key in ("tab", "shift+tab", "left", "right"):
                 raise TabSwitch(key)
             if key == "enter":
                 return
@@ -621,7 +629,8 @@ class RichConsoleFrontend:
     def preview(self, prompt: str, deck: Deck, result: DeckOpResult = None) -> bool:
         if self._fullscreen:
             return self._preview_fullscreen(prompt, deck, result)
-        self.console.print(Text("Preview:", style=self.COLOR_PRIMARY + " bold"))
+        title = f"{result.op_title}. Preview:" if result else "Preview:"
+        self.console.print(Text(title, style=self.COLOR_PRIMARY))
         self.deck(deck, result, include_header=False)
         return self.input(f"{prompt} (y - yes, n - no)\n").lower() == "y"
 
@@ -649,6 +658,8 @@ class RichConsoleFrontend:
         can_scroll = max_top_row > 1
         current_top_row = 1
 
+        title = f"{result.op_title}. Preview:" if result else "Preview:"
+
         hint_parts = ["Enter accept", "⌫ discard"]
         if can_scroll:
             hint_parts.append("↑/↓ scroll")
@@ -658,7 +669,7 @@ class RichConsoleFrontend:
         def render_entry() -> Group:
             row = current_top_row if can_scroll else None
             table = self.deck_notes(deck, result, row, table_height)
-            return Group(Text("Preview:", style=self.COLOR_PRIMARY + " bold"), table, Text(""),
+            return Group(Text(title, style=self.COLOR_PRIMARY), table, Text(""),
                          Text(prompt, style="italic " + self.COLOR_PRIMARY),
                          Text(""), Text(hint_text, style="italic " + self.COLOR_QUIET))
 
@@ -666,7 +677,7 @@ class RichConsoleFrontend:
         self._redraw()
         while True:
             key = self._read_key()
-            if key in ("tab", "shift+tab"):
+            if key in ("tab", "shift+tab", "left", "right"):
                 raise TabSwitch(key)
             if key == "enter":
                 return True
@@ -692,21 +703,107 @@ class RichConsoleFrontend:
             self._redraw()
 
 
+    def _render_input(self, text: str, col: int, show_hint: bool = True) -> Group:
+        line = Text()
+        line.append("❯ ", style=self.COLOR_ACCENT + " bold")
+        line.append(text[:col], style="white")
+        if col < len(text):
+            line.append(text[col], style="white reverse")
+            line.append(text[col + 1:], style="white")
+        else:
+            line.append(" ", style="white reverse")
+
+        if not show_hint:
+            return Group(line)
+
+        hint_text = "Enter confirm"
+        if text:
+            hint_text += " · ⌫ delete · ←/→ navigate"
+        if self._fullscreen:
+            hint_text += " · Tab next tab"
+        hint_text += " · Ctrl+C exit"
+        hint = Text(hint_text, style="italic " + self.COLOR_QUIET)
+        return Group(line, Text(""), hint)
+
+
     def input(self, prompt: str) -> str:
-        if self._fullscreen and self._live is not None:
-            # input() needs cooked/line-buffered stdin, a different mode than the raw keypress
-            # reading every other fullscreen widget uses — pause the shared Live for the
-            # duration of this one blocking call instead of trying to mix the two.
-            self._live.stop()
-            try:
-                self.console.print(prompt, style="italic " + self.COLOR_PRIMARY, end="")
-                result = input()
-            finally:
-                self._live.start()
-                self._redraw()
-            return result
-        self.console.print(prompt, style="italic " + self.COLOR_PRIMARY, end="")
-        return input()
+        can_read_keys = msvcrt or (termios and tty)
+        if not sys.stdin.isatty() or not can_read_keys:
+            self.console.print(prompt, style="italic " + self.COLOR_PRIMARY, end="")
+            return input()
+
+        if self._fullscreen:
+            return self._input_fullscreen(prompt)
+
+        if prompt:
+            self.console.print(prompt, style="italic " + self.COLOR_PRIMARY, end="")
+
+        text = ""
+        col = 0
+        with Live(self._render_input(text, col, show_hint=False), console=self.console,
+                  auto_refresh=False, transient=False) as live:
+            while True:
+                key = self._read_key()
+                if key == "left" and col > 0:
+                    col -= 1
+                elif key == "right" and col < len(text):
+                    col += 1
+                elif key == "backspace" and col > 0:
+                    text = text[:col - 1] + text[col:]
+                    col -= 1
+                elif key == "enter":
+                    break
+                elif key is not None and len(key) == 1 and key.isprintable():
+                    text = text[:col] + key + text[col:]
+                    col += 1
+                else:
+                    continue
+                live.update(self._render_input(text, col, show_hint=False))
+                live.refresh()
+
+        return text
+
+
+    def _input_fullscreen(self, prompt: str) -> str:
+        if prompt:
+            # Callers pass a trailing "\n" (matching the non-fullscreen path's `end=""` print);
+            # a Text with an embedded newline renders as its own extra blank line, so strip it.
+            self._append_body(Text(prompt.rstrip("\n"), style="italic " + self.COLOR_PRIMARY))
+
+        text = ""
+        col = 0
+        self._body_parts.append(self._render_input(text, col))
+        self._redraw()
+        while True:
+            key = self._read_key()
+            if key in ("tab", "shift+tab"):
+                raise TabSwitch(key)
+            elif key == "left" and col > 0:
+                col -= 1
+            elif key == "right" and col < len(text):
+                col += 1
+            elif key == "backspace" and col > 0:
+                text = text[:col - 1] + text[col:]
+                col -= 1
+            elif key == "enter":
+                break
+            elif key is not None and len(key) == 1 and key.isprintable():
+                text = text[:col] + key + text[col:]
+                col += 1
+            elif key == "pageup":
+                self._log_scroll = min(self._log_scroll + 1, max(0, len(self._log_buffer) - 4))
+            elif key == "pagedown":
+                self._log_scroll = max(0, self._log_scroll - 1)
+            elif key == "ctrl+l":
+                self._log_visible = not self._log_visible
+            else:
+                continue
+            self._body_parts[-1] = self._render_input(text, col)
+            self._redraw()
+
+        self._body_parts[-1] = self._render_input(text, col, show_hint=False)
+        self._redraw()
+        return text
 
 
     def _render_input_multi(self, lines: list[str], row: int, col: int, newline_hint: str = None,
@@ -714,7 +811,7 @@ class RichConsoleFrontend:
         rendered = []
         for i, line in enumerate(lines):
             text = Text()
-            text.append("❯ ", style=self.COLOR_SECONDARY + " bold")
+            text.append("❯ ", style=(self.COLOR_ACCENT if i == row else self.COLOR_SECONDARY) + " bold")
             if i == row:
                 text.append(line[:col], style="white")
                 if col < len(line):
@@ -735,8 +832,10 @@ class RichConsoleFrontend:
         if not show_hint:
             return Group(*rendered)
 
+        no_input_yet = len(lines) == 1 and not lines[0]
         hint_text = "Enter confirm" if row == len(lines) - 1 and not lines[row] else "Enter new line"
-        hint_text += " · ⌫ delete · ←/→/↑/↓ navigate"
+        if not no_input_yet:
+            hint_text += " · ⌫ delete · ←/→/↑/↓ navigate"
         if self._fullscreen:
             hint_text += " · Tab next tab"
         hint_text += " · Ctrl+C exit"
@@ -774,7 +873,9 @@ class RichConsoleFrontend:
                   auto_refresh=False, transient=False) as live:
             while True:
                 key = self._read_key()
-                if key == "left":
+                if key in ("left", "right", "up", "down") and len(lines) == 1 and not lines[0]:
+                    continue
+                elif key == "left":
                     if col > 0:
                         col -= 1
                     elif row > 0:
@@ -848,6 +949,8 @@ class RichConsoleFrontend:
                 self._log_scroll = max(0, self._log_scroll - 1)
             elif key == "ctrl+l":
                 self._log_visible = not self._log_visible
+            elif key in ("left", "right") and len(lines) == 1 and not lines[0]:
+                raise TabSwitch(key)
             elif key == "left":
                 if col > 0:
                     col -= 1
@@ -1081,7 +1184,7 @@ class RichConsoleFrontend:
             key = self._read_key()
             if key == "backspace" and abortable:
                 raise InteractiveAbort
-            elif key in ("tab", "shift+tab"):
+            elif key in ("tab", "shift+tab", "left", "right"):
                 raise TabSwitch(key)
             elif options and key == "up":
                 selected = (selected - 1) % len(options)
@@ -1220,7 +1323,7 @@ class RichConsoleFrontend:
             key = self._read_key()
             if key == "backspace" and abortable:
                 raise InteractiveAbort
-            elif key in ("tab", "shift+tab"):
+            elif key in ("tab", "shift+tab", "left", "right"):
                 raise TabSwitch(key)
             elif key == "up":
                 selected = (selected - 1) % len(options)
@@ -1276,20 +1379,17 @@ class RichConsoleFrontend:
 
 
     def integrations(self, rows: list[tuple[str, str, Optional[str]]]):
-        need_fix = sum(1 for _, _, help_text in rows if help_text)
         parts = []
 
-        if need_fix:
-            parts.append(Text(f"{need_fix} integrations need repair", style=self.COLOR_WARNING + " bold"))
-            parts.append(Text(""))
-
         for name, status, help_text in rows:
+            icon, color = self._INTEGRATION_STATUS_STYLE.get(status, ("?", self.COLOR_PRIMARY))
             line = Text()
             line.append(f"{name}: ", style=self.COLOR_PRIMARY + " bold")
-            line.append(status, style=self.COLOR_PRIMARY)
+            line.append(f"{icon} ", style=color + " bold")
+            line.append(status, style=color)
             parts.append(line)
             if help_text:
-                parts.append(Text(f"Repair steps: {help_text}", style=self.COLOR_QUIET))
+                parts.append(Text(f"Repair steps:\n{help_text}", style=self.COLOR_QUIET))
 
         if self._fullscreen:
             self._append_body(Group(*parts))

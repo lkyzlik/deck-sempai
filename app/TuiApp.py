@@ -13,17 +13,29 @@ class TuiApp(App):
     def __init__(self):
         super().__init__()
         self._show_top_row = None
+        self._deck_load_failed = False
 
 
     def _load_deck_safe(self) -> Deck:
         try:
-            return self._load_deck()
-        except DeckOpError:
+            deck = self._load_deck()
+            self._deck_load_failed = False
+            return deck
+        except DeckOpError as e:
+            self.frontend.print("Couldn't load deck. Repair in Integrations.")
+            self.frontend.error(str(e))
+            self._deck_load_failed = True
             return Deck(self.state.current_deck)
 
 
     def _refresh_integration_statuses(self) -> dict[str, str]:
         return {name: integration.status() for name, integration in self.integrations.items()}
+
+
+    # Redraws the header with the given deck immediately, so a reload is reflected in the
+    # "(N cards)" count right away instead of lagging a frame behind whatever's on screen.
+    def _refresh_status_bar(self, current_deck: Deck):
+        self.frontend.status_bar(self.version, current_deck, self._deck_load_failed)
 
 
     # Overrides of App's prompt helpers so backspace-abort also works when they're reused from
@@ -96,9 +108,23 @@ class TuiApp(App):
         def remember(row: int):
             self._show_top_row = row
 
+        try:
+            current_deck = self._load_deck()
+            self._deck_load_failed = False
+        except DeckOpError as e:
+            current_deck = Deck(self.state.current_deck)
+            self._deck_load_failed = True
+            self._refresh_status_bar(current_deck)
+            self.frontend.print("Couldn't load deck. Repair in Integrations.")
+            self.frontend.error(str(e))
+            self.frontend.hint("Enter refresh · Tab next tab")
+            self.frontend.choice("", [], transient=True, abortable=False)
+            return current_tab, current_deck
+
+        self._refresh_status_bar(current_deck)
         self.frontend.deck(current_deck, include_header=False, top_row=self._show_top_row,
                            scrollable=True, on_scroll=remember)
-        return current_tab, self._load_deck_safe()
+        return current_tab, current_deck
 
 
     def _tab_deck(self, tab_names: list[str], current_tab: int, current_deck: Deck) -> tuple[int, Deck]:
@@ -111,8 +137,8 @@ class TuiApp(App):
 
         result = self._deck_options(exporter)
         if result is None:
-            self.frontend.print("Could not load decks.")
-            self.frontend.hint("Tab next tab")
+            self.frontend.print("Couldn't load decks. Repair in Integrations.")
+            self.frontend.hint("Enter refresh · Tab next tab")
             self.frontend.choice("", [], transient=True, abortable=False)
             return current_tab, current_deck
 
@@ -149,8 +175,8 @@ class TuiApp(App):
         return current_tab, self._load_deck_safe()
 
 
-    def _tab_integrations(self, tab_names: list[str], current_tab: int,
-                           statuses: dict[str, str]) -> tuple[int, dict[str, str]]:
+    def _tab_integrations(self, tab_names: list[str], current_tab: int, current_deck: Deck,
+                           statuses: dict[str, str]) -> tuple[int, Deck, dict[str, str]]:
         visible = [i for i in self.integrations.values() if statuses.get(i.name) != "disabled"]
         if not visible:
             self.frontend.print("No integrations require attention.")
@@ -165,7 +191,9 @@ class TuiApp(App):
         choice = self.frontend.choice("", [], transient=True, abortable=False)
         if choice is None:
             statuses = self._refresh_integration_statuses()
-        return current_tab, statuses
+            current_deck = self._load_deck_safe()
+            self._refresh_status_bar(current_deck)
+        return current_tab, current_deck, statuses
 
 
     def tui(self):
@@ -174,7 +202,7 @@ class TuiApp(App):
             return
 
         TAB_SHOW, TAB_DECK, TAB_ADD, TAB_TRANSFORM, TAB_INTEGRATIONS = range(5)
-        tab_labels = ["Show", "Deck", "Add", "Transform", "Integrations"]
+        tab_labels = ["Cards", "Deck", "Add", "Transform", "Integrations"]
 
         current_tab = TAB_SHOW
         previous_tab = None
@@ -185,7 +213,7 @@ class TuiApp(App):
             while True:
                 self.frontend.clear()
                 self._load_state()
-                self.frontend.status_bar(self.version, current_deck)
+                self.frontend.status_bar(self.version, current_deck, self._deck_load_failed)
 
                 if current_tab == TAB_INTEGRATIONS and previous_tab != TAB_INTEGRATIONS:
                     statuses = self._refresh_integration_statuses()
@@ -206,8 +234,9 @@ class TuiApp(App):
                     elif current_tab == TAB_TRANSFORM:
                         current_tab, current_deck = self._tab_transform(tab_names, current_tab, current_deck)
                     elif current_tab == TAB_INTEGRATIONS:
-                        current_tab, statuses = self._tab_integrations(tab_names, current_tab, statuses)
+                        current_tab, current_deck, statuses = self._tab_integrations(
+                            tab_names, current_tab, current_deck, statuses)
                 except InteractiveAbort:
                     pass
                 except TabSwitch as e:
-                    current_tab = (current_tab + (1 if e.key == "tab" else -1)) % len(tab_names)
+                    current_tab = (current_tab + (1 if e.key in ("tab", "right") else -1)) % len(tab_names)

@@ -66,7 +66,7 @@ class AddGrammarTransformer(Transformer):
             pos = None
         applicable_rules = [gr for gr in grammar_rules if self.REQUIRED_POS[gr] == pos]
         if not applicable_rules:
-            self._info(f"Skipping {field.get_text_oneline()!r}: Doesn't match any requested grammar type")
+            self._info(f"{field.get_text_oneline()!r} doesn't match any grammar rule, skipped")
             return NoteOpResult(success=True)
 
         # Fetch the grammar help for every applicable rule and fill it into RESULT_FORMAT.

@@ -62,7 +62,7 @@ class App:
         self.media_dir = data_dir / "media"
 
         self.frontends: dict[str, Frontend] = {
-            "rich": RichConsoleFrontend(),
+            "rich": RichConsoleFrontend(log_level=self.config.app.log_level),
         }
         self.frontend: Frontend = self.frontends[self.config.app.frontend]
 
@@ -158,7 +158,7 @@ class App:
             choice = choice[:-len(self._CURRENT_DECK_SUFFIX)]
 
         if choice not in names:
-            self.frontend.error(f"No such deck: '{choice}'")
+            self.frontend.error(f"No such deck: {choice!r}")
             return None
 
         return choice
@@ -198,7 +198,7 @@ class App:
     def _storage_exporter(self) -> StorageExporter | None:
         exporter = self.exporters[self.config.app.deck_storage]
         if not isinstance(exporter, StorageExporter):
-            self.frontend.error(f"Exporter '{self.config.app.deck_storage}' does not support managing decks.")
+            self.frontend.error(f"Exporter {self.config.app.deck_storage!r} does not support managing decks.")
             return None
         return exporter
 
@@ -231,7 +231,7 @@ class App:
             try:
                 return Language.from_str(answer)
             except ValueError:
-                self.frontend.error(f"Unknown language '{answer}'.")
+                self.frontend.error(f"Unknown language {answer!r}.")
 
 
     def _confirm(self, prompt: str) -> bool:
@@ -325,7 +325,7 @@ class App:
                 return
 
         confirm = self._confirm if interactive else self._confirm_plain
-        if not confirm(f"Delete deck '{name}' and all its notes? This can't be undone."):
+        if not confirm(f"Delete deck {name!r} and all its notes? This can't be undone."):
             return
 
         try:
@@ -337,8 +337,6 @@ class App:
         if name == self.state.current_deck:
             self.state.current_deck = AppState().current_deck
             self._save_state()
-
-        self.frontend.info(f"Deleted deck '{name}'")
 
 
     def _meta_interactive(self, deck: Deck) -> dict | None:
@@ -376,7 +374,7 @@ class App:
 
     def export(self, exporter: str, **kwargs):
         if exporter not in self.exporters:
-            self.frontend.error(f"Exporter '{exporter}' not found. Available exporters: {', '.join(self.exporters.keys())}")
+            self.frontend.error(f"Exporter {exporter!r} not found. Available exporters: {', '.join(self.exporters.keys())}")
             return
 
         try:
@@ -390,7 +388,7 @@ class App:
 
     def import_(self, importer: str, **kwargs):
         if importer not in self.importers:
-            self.frontend.error(f"Importer '{importer}' not found. Available importers: {', '.join(self.importers.keys())}")
+            self.frontend.error(f"Importer {importer!r} not found. Available importers: {', '.join(self.importers.keys())}")
             return
 
         try:
@@ -446,7 +444,7 @@ class App:
             for entry in self.config.commands.add.apply:
                 name, kwargs = self._parse_apply_entry(entry)
                 if name not in self.transformers:
-                    self.frontend.warning(f"Transformer '{name}' not found, skipping")
+                    self.frontend.warning(f"Transformer {name!r} not found")
                     continue
                 try:
                     self.transformers[name].transform_deck(note_deck, **kwargs)
@@ -489,7 +487,7 @@ class App:
 
     def transform(self, transformer: str, interactive: bool = False, **kwargs):
         if transformer not in self.transformers:
-            self.frontend.error(f"Transformer '{transformer}' not found. Available transformers: {', '.join(self.transformers.keys())}")
+            self.frontend.error(f"Transformer {transformer!r} not found. Available transformers: {', '.join(self.transformers.keys())}")
             return
 
         try:
@@ -535,7 +533,7 @@ class App:
 
     def _repair_integration(self, integration: Integration):
         self.frontend.print("")
-        self.frontend.print(f"'{integration.name}' integration is not running. Steps to repair:")
+        self.frontend.print(f"{integration.name!r} integration is not running. Steps to repair:")
         self.frontend.print(integration.user_help())
 
         options = ["Retry connection", "Skip"]
@@ -544,13 +542,13 @@ class App:
             choice = self.frontend.choice("", options, abortable=False)
             if choice == "Retry connection":
                 if integration.test_connection():
-                    self.frontend.print(f"Success! '{integration.name}' connected.")
+                    self.frontend.print(f"Success! {integration.name!r} connected.")
                     return
                 failures += 1
-                self.frontend.print(f"Still can't reach '{integration.name}'.")
+                self.frontend.print(f"Still can't reach {integration.name!r}.")
                 if failures >= 2:
                     self.frontend.print(
-                        f"You can disable the '{integration.name}' integration by setting "
+                        f"You can disable the {integration.name!r} integration by setting "
                         f"enable = false in the integrations.{integration.name} section of config.toml."
                     )
                 continue
@@ -560,10 +558,10 @@ class App:
     def _setup_one(self, integration: Integration):
         status = integration.status()
         if status == "disabled":
-            self.frontend.print(f"'{integration.name}' integration is disabled.")
+            self.frontend.print(f"{integration.name!r} integration is disabled.")
             return
         if status == "running":
-            self.frontend.print(f"'{integration.name}' integration is already running.")
+            self.frontend.print(f"{integration.name!r} integration is already running.")
             return
         self._repair_integration(integration)
 
@@ -572,13 +570,13 @@ class App:
         if integration:
             target = self.integrations.get(integration.lower())
             if not target:
-                self.frontend.error(f"Integration '{integration}' not found. Available integrations: {', '.join(self.integrations)}")
+                self.frontend.error(f"Integration {integration!r} not found. Available integrations: {', '.join(self.integrations)}")
                 return
             self._setup_one(target)
             return
 
         for i in self.integrations.values():
-            self.frontend.print(f"'{i.name}': {i.status()}")
+            self.frontend.print(f"{i.name!r}: {i.status()}")
 
         for i in self.integrations.values():
             if i.status() == "disconnected":

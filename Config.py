@@ -9,6 +9,7 @@ from pathlib import Path
 class AppConfig:
     deck_storage: str = "anki"
     frontend: str = "rich"
+    log_level: str = "warning"
 
 
 @dataclass

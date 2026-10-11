@@ -152,6 +152,7 @@ class RichConsoleFrontend:
     COLOR_SUCCESS = "green"
 
     _LOG_PREFIX = {"info": "Info: ", "warning": "Warning: ", "error": "Error: "}
+    _LOG_LEVELS = {"info": 0, "warning": 1, "error": 2}
 
     _INTEGRATION_STATUS_STYLE = {
         "running": ("●", COLOR_SUCCESS),
@@ -167,8 +168,9 @@ class RichConsoleFrontend:
     _FOOTER_LINES_VISIBLE = 5
     _FOOTER_LINES_HIDDEN = 1
 
-    def __init__(self, console: Console = Console()):
+    def __init__(self, console: Console = Console(), log_level: str = "warning"):
         self.console = console
+        self.log_level = log_level
         # Set for the duration of fullscreen()'s `with` block — every method below checks this
         # to decide between its plain (own-Live-per-call, unchanged) behavior and the fullscreen
         # behavior (render into the shared header/body/footer composition below instead).
@@ -278,7 +280,13 @@ class RichConsoleFrontend:
         return datetime.now().strftime("%H:%M:%S")
 
 
+    def _should_log(self, level: str) -> bool:
+        return self._LOG_LEVELS[level] >= self._LOG_LEVELS.get(self.log_level, 0)
+
+
     def info(self, message: str):
+        if not self._should_log("info"):
+            return
         self._log_buffer.append(("info", message, self._timestamp()))
         if self._fullscreen:
             return
@@ -289,6 +297,8 @@ class RichConsoleFrontend:
 
 
     def error(self, message: str):
+        if not self._should_log("error"):
+            return
         self._log_buffer.append(("error", message, self._timestamp()))
         if self._fullscreen:
             return
@@ -299,6 +309,8 @@ class RichConsoleFrontend:
 
 
     def warning(self, message: str):
+        if not self._should_log("warning"):
+            return
         self._log_buffer.append(("warning", message, self._timestamp()))
         if self._fullscreen:
             return

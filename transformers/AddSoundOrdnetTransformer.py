@@ -55,7 +55,7 @@ class AddSoundOrdnetTransformer(Transformer):
 
     def _transform_field(self, field: Field, deck_name: str, is_last: bool) -> NoteOpResult:
         if len(field.sounds) > 0:
-            self._warning(f"{field.get_text_oneline()!r} already has sound")
+            self._info(f"{field.get_text_oneline()!r} already has sound, skipped")
             return NoteOpResult(success=False)
 
         try:

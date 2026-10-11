@@ -44,7 +44,7 @@ class OllamaIntegration:
     def user_help(self) -> str:
         return (
              "1. Make sure Ollama app is installed and running. (https://ollama.com/download)\n"
-            f"2. Make sure that configured model '{self._default_model}' is installed. Run\n"
+            f"2. Make sure that configured model {self._default_model!r} is installed. Run\n"
             f"   'ollama list' to see installed models and install new one with\n"
             f"   'ollama pull MODEL_NAME'."
         )

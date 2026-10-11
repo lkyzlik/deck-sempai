@@ -58,7 +58,7 @@ class TuiApp(App):
             choice = choice[:-len(self._CURRENT_DECK_SUFFIX)]
 
         if choice not in names:
-            self.frontend.error(f"No such deck: '{choice}'")
+            self.frontend.error(f"No such deck: {choice!r}")
             return None
 
         return choice
@@ -92,7 +92,7 @@ class TuiApp(App):
             try:
                 return Language.from_str(answer)
             except ValueError:
-                self.frontend.error(f"Unknown language '{answer}'.")
+                self.frontend.error(f"Unknown language {answer!r}.")
 
 
     # In fullscreen, the deck preview takes over the whole body (scrollable, Enter accepts,

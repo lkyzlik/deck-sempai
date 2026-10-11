@@ -38,7 +38,7 @@ class DeckMeta:
                 new_value: DeckMetaAttr = type(value).from_str(data[key])
             except ValueError:
                 if logger:
-                    logger.warning(f"Invalid value for deck metadata key '{key}', setting to default '{default}'")
+                    logger.warning(f"Invalid value for deck metadata key {key!r}, setting to default {default!r}")
                 new_value = default
                 corrected = True
             setattr(self, key, new_value)

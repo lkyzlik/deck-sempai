@@ -48,8 +48,8 @@ class OrdnetIntegration:
 
     def user_help(self) -> str:
         return (
-            "Can't reach ordnet.dk. Check your internet connection, then try again. "
-            "If the problem persists, ordnet.dk may be down or blocking requests."
+            "1. Make sure your computer is connected to the internet.\n"
+            "2. Check if ordnet.dk website is up."
         )
 
 

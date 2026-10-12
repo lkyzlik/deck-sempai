@@ -117,7 +117,7 @@ class TuiApp(App):
             self._refresh_status_bar(current_deck)
             self.frontend.print("Couldn't load deck. Repair in Integrations.")
             self.frontend.error(str(e))
-            self.frontend.hint("Enter refresh · Tab next tab")
+            self.frontend.hint("Enter refresh · Tab next tab · Ctrl+C exit")
             self.frontend.choice("", [], transient=True, abortable=False)
             return current_tab, current_deck
 
@@ -131,14 +131,14 @@ class TuiApp(App):
         exporter = self._storage_exporter()
         if not exporter:
             self.frontend.print("Deck management is not supported by the configured exporter.")
-            self.frontend.hint("Tab next tab")
+            self.frontend.hint("Tab next tab · Ctrl+C exit")
             self.frontend.choice("", [], transient=True, abortable=False)
             return current_tab, current_deck
 
         result = self._deck_options(exporter)
         if result is None:
             self.frontend.print("Couldn't load decks. Repair in Integrations.")
-            self.frontend.hint("Enter refresh · Tab next tab")
+            self.frontend.hint("Enter refresh · Tab next tab · Ctrl+C exit")
             self.frontend.choice("", [], transient=True, abortable=False)
             return current_tab, current_deck
 
@@ -176,13 +176,9 @@ class TuiApp(App):
 
 
     def _print_integrations(self, statuses: dict[str, str]):
-        visible = [i for i in self.integrations.values() if statuses.get(i.name) != "disabled"]
-        if not visible:
-            self.frontend.print("No integrations require attention.")
-            return
         rows = [
             (i.name, statuses[i.name], i.user_help() if statuses[i.name] == "disconnected" else None)
-            for i in visible
+            for i in self.integrations.values()
         ]
         self.frontend.integrations(rows)
 
@@ -202,7 +198,7 @@ class TuiApp(App):
     def _tab_integrations(self, tab_names: list[str], current_tab: int, current_deck: Deck,
                            statuses: dict[str, str]) -> tuple[int, Deck, dict[str, str]]:
         self._print_integrations(statuses)
-        self.frontend.hint("Enter refresh · Tab next tab")
+        self.frontend.hint("Enter refresh · Tab next tab · Ctrl+C exit")
         choice = self.frontend.choice("", [], transient=True, abortable=False)
         if choice is None:
             statuses = self._refresh_integration_statuses()

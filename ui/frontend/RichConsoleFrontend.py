@@ -268,11 +268,11 @@ class RichConsoleFrontend:
 
     def status_bar(self, version: str, current_deck: Deck, load_failed: bool = False):
         text = Text()
-        text.append("Deck Sempai", style=self.COLOR_PRIMARY + " bold")
-        text.append(f" · v{version} · Current deck: ", style=self.COLOR_PRIMARY)
-        text.append(current_deck.name, style=self.COLOR_PRIMARY + " bold")
+        text.append("Deck Sempai", style=self.COLOR_SECONDARY + " bold")
+        text.append(f" · v{version} · Current deck: ", style=self.COLOR_SECONDARY)
+        text.append(current_deck.name, style=self.COLOR_SECONDARY + " bold")
         cards = "?" if load_failed else len(current_deck.notes)
-        text.append(f" ({cards} cards)", style=self.COLOR_PRIMARY)
+        text.append(f" ({cards} cards)", style=self.COLOR_SECONDARY)
         if not self._fullscreen:
             self.console.print(text)
             self.console.print()
@@ -1380,7 +1380,7 @@ class RichConsoleFrontend:
             if i > 0:
                 text.append("  ")
             if i == current_tab:
-                text.append(f" {name} ", style=f"black on {self.COLOR_PRIMARY} bold")
+                text.append(f" {name} ", style=f"black on {self.COLOR_ACCENT} bold")
             else:
                 text.append(f" {name} ", style=self.COLOR_PRIMARY)
         return text

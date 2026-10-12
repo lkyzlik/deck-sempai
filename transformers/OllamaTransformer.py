@@ -29,9 +29,9 @@ class OllamaTransformer(Transformer):
             raise DeckOpError(self, str(e)) from e
         except OllamaIntegrationError as e:
             self._warning(f"AI edit failed for {field_from.get_text_oneline()!r}: {e}")
-            return NoteOpResult(success=False)
+            return NoteOpResult("failed")
 
-        return NoteOpResult(success=True)
+        return NoteOpResult("ok")
 
 
     def _transform_deck(self, deck: Deck, side_from: Side, side_to: Side, prompt: str, think: str | bool,

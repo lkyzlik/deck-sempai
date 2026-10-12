@@ -56,7 +56,7 @@ class AddSoundOrdnetTransformer(Transformer):
     def _transform_field(self, field: Field, deck_name: str, is_last: bool) -> NoteOpResult:
         if len(field.sounds) > 0:
             self._info(f"{field.get_text_oneline()!r} already has sound, skipped")
-            return NoteOpResult(success=False)
+            return NoteOpResult("skipped")
 
         try:
             pos = self.grammar.pos(field.text)
@@ -66,7 +66,7 @@ class AddSoundOrdnetTransformer(Transformer):
         word = self._extract_word(field.text)
         if not word:
             self._warning(f"Can't extract word from {field.get_text_oneline()!r}")
-            return NoteOpResult(success=False)
+            return NoteOpResult("failed")
 
         try:
             sound_path = self._download_sound(word, pos, f"ordnet_{deck_name}_{word}.mp3")
@@ -77,11 +77,11 @@ class AddSoundOrdnetTransformer(Transformer):
             self._warning(f"Can't download sound for {word!r}: {e}")
             if not is_last:
                 time.sleep(0.5) # Be polite to the server even on errors
-            return NoteOpResult(success=False)
+            return NoteOpResult("failed")
 
         if not is_last:
             time.sleep(0.5) # Be polite to the server
-        return NoteOpResult(success=True)
+        return NoteOpResult("ok")
 
 
     def _transform_deck(self, deck: Deck, sides: list[Side]) -> DeckOpResult:
@@ -101,7 +101,7 @@ class AddSoundOrdnetTransformer(Transformer):
                 if combined_results is None:
                     combined_results = side_results
                 else:
-                    combined_results = [NoteOpResult(success=a.success and b.success)
+                    combined_results = [a + b
                                         for a, b in zip(combined_results, side_results)]
 
         return DeckOpResult(combined_results, op_title="Sound added")

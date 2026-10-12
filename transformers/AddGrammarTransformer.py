@@ -67,7 +67,7 @@ class AddGrammarTransformer(Transformer):
         applicable_rules = [gr for gr in grammar_rules if self.REQUIRED_POS[gr] == pos]
         if not applicable_rules:
             self._info(f"{field.get_text_oneline()!r} doesn't match any grammar rule, skipped")
-            return NoteOpResult(success=True)
+            return NoteOpResult("skipped")
 
         # Fetch the grammar help for every applicable rule and fill it into RESULT_FORMAT.
         # Each entry maps a grammar rule to its (placeholder name, value-fetching method).
@@ -86,10 +86,10 @@ class AddGrammarTransformer(Transformer):
                 raise DeckOpError(self, str(e)) from e
             except GrammarToolError as e:
                 self._warning(str(e))
-                return NoteOpResult(success=False)
+                return NoteOpResult("failed")
 
         field.text = self._fill_result_format(values)
-        return NoteOpResult(success=True)
+        return NoteOpResult("ok")
 
 
     def _transform_deck(self, deck: Deck, sides: list[Side], grammar_rules: list[GrammarRule]) -> DeckOpResult:
@@ -107,7 +107,7 @@ class AddGrammarTransformer(Transformer):
                 if combined_results is None:
                     combined_results = side_results
                 else:
-                    combined_results = [NoteOpResult(success=a.success and b.success)
+                    combined_results = [a + b
                                         for a, b in zip(combined_results, side_results)]
 
         return DeckOpResult(combined_results, op_title="Added grammar help (AI)")

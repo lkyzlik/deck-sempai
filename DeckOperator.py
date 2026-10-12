@@ -1,6 +1,13 @@
 from dataclasses import dataclass
+from typing import Literal
 
 from ui.Logger import Logger
+
+
+NoteOpStatus = Literal["ok", "failed", "skipped"]
+
+# Precedence used when combining mutiple results for the same note
+_STATUS_PRECEDENCE: tuple[NoteOpStatus, ...] = ("failed", "ok", "skipped")
 
 
 class DeckOperator:
@@ -24,7 +31,13 @@ class DeckOpError(Exception):
 @dataclass
 class NoteOpResult:
     """Result of an operation (op) performed on a note"""
-    success: bool
+    status: NoteOpStatus
+
+    def __add__(self, other: 'NoteOpResult') -> 'NoteOpResult':
+        for status in _STATUS_PRECEDENCE:
+            if self.status == status or other.status == status:
+                return NoteOpResult(status)
+        return NoteOpResult("ok")
 
 
 @dataclass
@@ -34,5 +47,5 @@ class DeckOpResult:
     op_title: str = "Results"
 
     @staticmethod
-    def all_ok(n_notes: int, op_title: str = "Results") -> 'DeckOpResult':
-        return DeckOpResult([NoteOpResult(True) for _ in range(n_notes)], op_title=op_title)
+    def all_with_status(n_notes: int, status: NoteOpStatus, op_title: str = "Results") -> 'DeckOpResult':
+        return DeckOpResult([NoteOpResult(status) for _ in range(n_notes)], op_title=op_title)

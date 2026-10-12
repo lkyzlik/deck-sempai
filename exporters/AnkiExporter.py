@@ -62,7 +62,7 @@ class AnkiExporter(StorageExporter):
                 except AnkiIntegrationError as e:
                     self._warning(f"Can't add sound {sound!r}: {e}")
                     self._cleanup_sounds(added_sounds)
-                    return NoteOpResult(False)
+                    return NoteOpResult("failed")
                 except IOError as e:
                     # No temp file means there has been no change to the sound
                     pass
@@ -78,9 +78,9 @@ class AnkiExporter(StorageExporter):
         except AnkiIntegrationError as e:
             self._warning(f"Can't add note {(note.front.get_text_oneline())!r}: {e}")
             self._cleanup_sounds(added_sounds)
-            return NoteOpResult(False)
+            return NoteOpResult("failed")
 
-        return NoteOpResult(True)
+        return NoteOpResult("ok")
 
 
     def create_deck(self, name: str) -> None:

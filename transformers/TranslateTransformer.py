@@ -24,9 +24,9 @@ class TranslateTransformer(Transformer):
             raise DeckOpError(self, str(e)) from e
         except TranslateToolError as e:
             self._warning(str(e))
-            return NoteOpResult(success=False)
+            return NoteOpResult("failed")
 
-        return NoteOpResult(success=True)
+        return NoteOpResult("ok")
 
 
     def _transform_deck(self, deck: Deck, side_from: Side, side_to: Side) -> DeckOpResult:

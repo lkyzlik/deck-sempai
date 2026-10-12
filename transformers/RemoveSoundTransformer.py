@@ -7,10 +7,11 @@ from transformers.Transformer import Transformer
 class RemoveSoundTransformer(Transformer):
     def _transform_field(self, field: Field) -> NoteOpResult:
         if not field.sounds:
-            return NoteOpResult(success=False)
+            self._info(f"{field.get_text_oneline()!r} has no sound, skipped")
+            return NoteOpResult("skipped")
 
         field.sounds = []
-        return NoteOpResult(success=True)
+        return NoteOpResult("ok")
 
 
     def _transform_deck(self, deck: Deck, side: Side) -> DeckOpResult:
@@ -30,7 +31,7 @@ class RemoveSoundTransformer(Transformer):
             if combined_results is None:
                 combined_results = result.note_results
             else:
-                combined_results = [NoteOpResult(success=a.success and b.success)
+                combined_results = [a + b
                                     for a, b in zip(combined_results, result.note_results)]
 
         return DeckOpResult(combined_results, op_title="Sound removed")

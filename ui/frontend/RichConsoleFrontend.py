@@ -154,6 +154,12 @@ class RichConsoleFrontend:
     _LOG_PREFIX = {"info": "Info: ", "warning": "Warning: ", "error": "Error: "}
     _LOG_LEVELS = {"info": 0, "warning": 1, "error": 2}
 
+    _NOTE_STATUS_STYLE = {
+        "ok": ("✓", COLOR_SUCCESS),
+        "failed": ("✗", COLOR_ERROR),
+        "skipped": ("↪", COLOR_INFO),
+    }
+
     _INTEGRATION_STATUS_STYLE = {
         "running": ("●", COLOR_SUCCESS),
         "disconnected": ("✗", COLOR_ERROR),
@@ -416,8 +422,8 @@ class RichConsoleFrontend:
             ]
             if result:
                 note_result = result.note_results[i]
-                status = "✓" if note_result.success else "✗"
-                row.append(Text(status, style="green" if note_result.success else "red"))
+                symbol, style = self._NOTE_STATUS_STYLE[note_result.status]
+                row.append(Text(f"{symbol} {note_result.status}", style=style))
             return row
 
         def add_note_row(i: int):

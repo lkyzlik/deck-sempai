@@ -55,7 +55,8 @@ class AddGrammarManager(Transformer):
         for resolved_lang, group_sides in groups.items():
             side_str = ",".join(s.value for s in group_sides)
             if resolved_lang == Language.NONE:
-                result = DeckOpResult.all_ok(len(deck.notes), op_title="Skipped")
+                self._info(f"No language set for side(s) {side_str}, skipping {len(deck.notes)} notes")
+                result = DeckOpResult.all_with_status(len(deck.notes), "skipped", op_title="Skipped")
             else:
                 result = self._transformer_for(resolved_lang).transform_deck(deck, side=side_str, lang=resolved_lang, rule=rule)
 
@@ -65,7 +66,7 @@ class AddGrammarManager(Transformer):
             if combined_results is None:
                 combined_results = result.note_results
             else:
-                combined_results = [NoteOpResult(success=a.success and b.success)
+                combined_results = [a + b
                                     for a, b in zip(combined_results, result.note_results)]
 
         return DeckOpResult(combined_results, op_title=op_title)

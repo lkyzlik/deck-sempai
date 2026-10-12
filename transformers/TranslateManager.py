@@ -68,8 +68,12 @@ class TranslateManager(Transformer):
                 forward_indices.append(i)
             elif has_back and not has_front:
                 backward_indices.append(i)
+            else:
+                text = note.front.get_text_oneline() or note.back.get_text_oneline()
+                reason = "both sides filled" if has_front else "both sides empty"
+                self._info(f"{text!r}: {reason}, skipped")
 
-        results = [NoteOpResult(success=True) for _ in deck.notes]
+        results = [NoteOpResult("skipped") for _ in deck.notes]
 
         for indices, side in ((forward_indices, f"{Side.FRONT}:{Side.BACK}"), (backward_indices, f"{Side.BACK}:{Side.FRONT}")):
             if not indices:

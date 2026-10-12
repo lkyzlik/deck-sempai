@@ -1,10 +1,10 @@
-from app.App import App
+from App import App
 from Deck import Deck
 from DeckOperator import DeckOpError, DeckOpResult
 from Enums import GrammarRule, Language
 from exporters.StorageExporter import StorageExporter
-from ui.frontend.Frontend import InteractiveAbort
-from ui.frontend.TuiFrontend import TabSwitch, TuiFrontend
+from ui.Frontend import InteractiveAbort
+from ui.TuiFrontend import TabSwitch, TuiFrontend
 
 
 class TuiApp(App):

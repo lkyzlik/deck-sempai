@@ -6,7 +6,7 @@ from Enums import Language, Side
 
 from ui.Logger import Logger
 from integrations.OllamaIntegration import OllamaIntegration
-from tools.TranslateToolOllama import TranslateToolOllama
+from tools.translate.OllamaTranslateTool import OllamaTranslateTool
 from transformers.TranslateTransformer import TranslateTransformer
 from transformers.Transformer import Transformer
 
@@ -29,5 +29,5 @@ class TranslateOllamaTransformer(Transformer):
         except ValueError:
             raise DeckOpError(self, f"Invalid argument: lang, supported format: FROM:TO, where FROM and TO are: {', '.join([l.value for l in Language])}")
 
-        tool = TranslateToolOllama(lang_from, lang_to, self.ollama, model, self.prompts_path)
+        tool = OllamaTranslateTool(lang_from, lang_to, self.ollama, model, self.prompts_path)
         return TranslateTransformer(self.logger, tool).transform_deck(deck, side=side)

@@ -6,7 +6,7 @@ from Enums import Language
 
 from ui.Logger import Logger
 from integrations.OrdnetIntegration import OrdnetIntegration
-from tools.GrammarToolOrdnet import GrammarToolOrdnet
+from tools.grammar.OrdnetGrammarTool import OrdnetGrammarTool
 from transformers.AddGrammarTransformer import AddGrammarTransformer
 from transformers.Transformer import Transformer
 
@@ -31,5 +31,5 @@ class AddGrammarOrdnetTransformer(Transformer):
         if lang != Language.DANISH:
             raise DeckOpError(self, f"'ordnet.dk' grammar tool only supports Danish, not {lang!s}")
 
-        tool = GrammarToolOrdnet(lang, self.ordnet, self.media_dir)
+        tool = OrdnetGrammarTool(lang, self.ordnet, self.media_dir)
         return AddGrammarTransformer(self.logger, tool).transform_deck(deck, side=side, rule=rule)

@@ -4,7 +4,7 @@ from typing import Callable, Protocol, runtime_checkable
 from Deck import Deck
 from DeckOperator import DeckOpResult
 
-from ui.frontend.Frontend import Frontend
+from ui.Frontend import Frontend
 
 
 class TabSwitch(Exception):

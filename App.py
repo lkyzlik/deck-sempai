@@ -24,8 +24,8 @@ from integrations.AnkiIntegration import AnkiIntegration
 from integrations.Integration import Integration
 from integrations.OllamaIntegration import OllamaIntegration
 from integrations.OrdnetIntegration import OrdnetIntegration
-from ui.frontend.Frontend import Frontend
-from ui.frontend.RichConsoleFrontend import RichConsoleFrontend
+from ui.Frontend import Frontend
+from ui.RichTuiFrontend import RichTuiFrontend
 
 from transformers.Transformer import Transformer
 from transformers.AddSoundManager import AddSoundManager
@@ -54,7 +54,7 @@ class App:
         self.config = Config.load()
         self.state = AppState()
 
-        with open(Path(__file__).parent.parent / "pyproject.toml", "rb") as f:
+        with open(Path(__file__).parent / "pyproject.toml", "rb") as f:
             self.version = tomllib.load(f)["project"]["version"]
 
         data_dir = Path(user_data_dir("deck-sempai"))
@@ -62,7 +62,7 @@ class App:
         self.media_dir = data_dir / "media"
 
         self.frontends: dict[str, Frontend] = {
-            "rich": RichConsoleFrontend(log_level=self.config.app.log_level),
+            "rich": RichTuiFrontend(log_level=self.config.app.log_level),
         }
         self.frontend: Frontend = self.frontends[self.config.app.frontend]
 

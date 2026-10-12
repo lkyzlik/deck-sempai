@@ -9,8 +9,8 @@ from Enums import Language, Side
 from DeckOperator import NoteOpResult, DeckOpResult, DeckOpError
 from ui.Logger import Logger
 from integrations.OrdnetIntegration import OrdnetIntegration, OrdnetIntegrationError, OrdnetIntegrationDisabledError
-from tools.GrammarTool import GrammarTool, GrammarToolError
-from tools.GrammarToolOrdnet import GrammarToolOrdnet
+from tools.grammar.GrammarTool import GrammarTool, GrammarToolError
+from tools.grammar.OrdnetGrammarTool import OrdnetGrammarTool
 from transformers.Transformer import Transformer
 
 
@@ -40,7 +40,7 @@ class AddSoundOrdnetTransformer(Transformer):
 
 
     def _download_sound(self, word: str, pos: str | None, filename: str) -> Path:
-        sound_url = self.ordnet.get_entry(word, pos=GrammarToolOrdnet.POS_KEY_MAP.get(pos))["sound_url"]
+        sound_url = self.ordnet.get_entry(word, pos=OrdnetGrammarTool.POS_KEY_MAP.get(pos))["sound_url"]
         if not sound_url:
             raise OrdnetIntegrationError(f"Can't find sound URL for {word!r}")
         output_path = self.media_dir / filename

@@ -6,7 +6,7 @@ from Enums import Language
 
 from ui.Logger import Logger
 from integrations.OllamaIntegration import OllamaIntegration
-from tools.GrammarToolOllama import GrammarToolOllama
+from tools.grammar.OllamaGrammarTool import OllamaGrammarTool
 from transformers.AddGrammarTransformer import AddGrammarTransformer
 from transformers.Transformer import Transformer
 
@@ -28,5 +28,5 @@ class AddGrammarOllamaTransformer(Transformer):
             raise DeckOpError(self, "Invalid argument: lang, supported: " +
                                     ', '.join([l.value for l in Language]))
 
-        tool = GrammarToolOllama(lang, self.ollama, model, self.prompts_path)
+        tool = OllamaGrammarTool(lang, self.ollama, model, self.prompts_path)
         return AddGrammarTransformer(self.logger, tool).transform_deck(deck, side=side, rule=rule)

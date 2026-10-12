@@ -17,8 +17,8 @@ from Deck import Deck, DeckMeta, Field
 from DeckOperator import DeckOpResult, DeckOpError
 
 from ui.Logger import LoggerProgress
-from ui.frontend.Frontend import InteractiveAbort
-from ui.frontend.TuiFrontend import TabSwitch
+from ui.Frontend import InteractiveAbort
+from ui.TuiFrontend import TabSwitch
 
 try:
     import termios
@@ -112,10 +112,10 @@ class _FlowerBarColumn(ProgressColumn):
 
 
 class _BodyProgress:
-    """A LoggerProgress that renders into a fullscreen RichConsoleFrontend's shared body instead
+    """A LoggerProgress that renders into a fullscreen RichTuiFrontend's shared body instead
     of managing its own Live — Rich only allows one Live per Console at a time, and the
     session-long Live from fullscreen() is already active while this runs."""
-    def __init__(self, frontend: "RichConsoleFrontend"):
+    def __init__(self, frontend: "RichTuiFrontend"):
         self._frontend = frontend
         self._progress = Progress(
             TextColumn("{task.description}", style=frontend.COLOR_PRIMARY),
@@ -141,7 +141,7 @@ class _BodyProgress:
         self._frontend._redraw()
 
 
-class RichConsoleFrontend:
+class RichTuiFrontend:
     COLOR_PRIMARY = "#fae9c8"
     COLOR_SECONDARY = "#a8813a"
     COLOR_ACCENT = "magenta"

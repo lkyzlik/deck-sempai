@@ -1,7 +1,7 @@
 import typer
 from typing import Optional
 
-from app.TuiApp import TuiApp
+from TuiApp import TuiApp
 from Deck import Side
 from Enums import GrammarRule, Model
 

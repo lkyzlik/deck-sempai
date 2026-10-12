@@ -3,7 +3,7 @@ from DeckOperator import DeckOpResult, DeckOpError, NoteOpResult
 from Enums import Side
 
 from ui.Logger import Logger
-from tools.TranslateTool import TranslateTool, TranslateToolError, TranslateToolDisabledError
+from tools.translate.TranslateTool import TranslateTool, TranslateToolError, TranslateToolDisabledError
 from transformers.Transformer import Transformer
 
 

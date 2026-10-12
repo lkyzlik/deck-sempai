@@ -5,7 +5,7 @@ from DeckOperator import DeckOpResult, DeckOpError, NoteOpResult
 from Enums import Side, GrammarRule
 
 from ui.Logger import Logger
-from tools.GrammarTool import GrammarTool, GrammarToolError, GrammarToolDisabledError
+from tools.grammar.GrammarTool import GrammarTool, GrammarToolError, GrammarToolDisabledError
 from transformers.Transformer import Transformer
 
 

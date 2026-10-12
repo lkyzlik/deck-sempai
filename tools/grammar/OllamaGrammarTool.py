@@ -3,10 +3,10 @@ from pathlib import Path
 from Enums import Language
 from integrations.OllamaIntegration import OllamaIntegration, OllamaIntegrationError, OllamaIntegrationDisabledError
 from PromptLoader import PromptLoader, PromptPlaceholders
-from tools.GrammarTool import GrammarTool, GrammarToolError, GrammarToolDisabledError
+from tools.grammar.GrammarTool import GrammarTool, GrammarToolError, GrammarToolDisabledError
 
 
-class GrammarToolOllama(GrammarTool):
+class OllamaGrammarTool(GrammarTool):
     def __init__(self, lang: Language, ollama: OllamaIntegration, model: str = None,
                 prompts_path: Path = "prompts.toml"):
         super().__init__(lang)

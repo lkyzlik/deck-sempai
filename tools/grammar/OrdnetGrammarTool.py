@@ -2,10 +2,10 @@ from pathlib import Path
 
 from Enums import Language
 from integrations.OrdnetIntegration import OrdnetIntegration, OrdnetIntegrationError, OrdnetIntegrationDisabledError
-from tools.GrammarTool import GrammarTool, GrammarToolError, GrammarToolDisabledError
+from tools.grammar.GrammarTool import GrammarTool, GrammarToolError, GrammarToolDisabledError
 
 
-class GrammarToolOrdnet(GrammarTool):
+class OrdnetGrammarTool(GrammarTool):
     # Maps ordnet.dk's part-of-speech abbreviations to the vocabulary used elsewhere in the app
     # (see AddGrammarTransformer.REQUIRED_POS and the `pos` prompt in prompts.toml).
     POS_MAP = {

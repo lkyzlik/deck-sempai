@@ -3,10 +3,10 @@ from pathlib import Path
 from Enums import Language
 from integrations.OllamaIntegration import OllamaIntegration, OllamaIntegrationError, OllamaIntegrationDisabledError
 from PromptLoader import PromptLoader, PromptPlaceholders
-from tools.TranslateTool import TranslateTool, TranslateToolError, TranslateToolDisabledError
+from tools.translate.TranslateTool import TranslateTool, TranslateToolError, TranslateToolDisabledError
 
 
-class TranslateToolOllama(TranslateTool):
+class OllamaTranslateTool(TranslateTool):
     def __init__(self, lang_from: Language, lang_to: Language, ollama: OllamaIntegration, model: str = None,
                 prompts_path: Path = "prompts.toml"):
         super().__init__(lang_from, lang_to)

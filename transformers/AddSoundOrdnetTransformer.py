@@ -28,7 +28,7 @@ class AddSoundOrdnetTransformer(Transformer):
             resp.raise_for_status()
         except httpx.HTTPError as e:
             raise OrdnetIntegrationError(
-                f"Can't reach ordnet.dk to download the sound file. Run 'setup {self.ordnet.name}' to check "
+                f"Can't reach ordnet.dk to download the sound file. Run 'status {self.ordnet.name}' to check "
                 "the connection and see repair steps."
             )
 

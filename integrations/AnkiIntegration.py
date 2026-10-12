@@ -60,7 +60,7 @@ class AnkiIntegration:
                 "params": params
             })
         except requests.RequestException:
-            raise AnkiIntegrationError(f"Can't connect. Run 'setup {self.name}' to check the connection and see repair steps.")
+            raise AnkiIntegrationError(f"Can't connect. Run 'status {self.name}' to check the connection and see repair steps.")
         result = response.json()
         if result.get("error"):
             raise AnkiIntegrationError(result["error"])

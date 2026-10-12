@@ -175,18 +175,33 @@ class TuiApp(App):
         return current_tab, self._load_deck_safe()
 
 
-    def _tab_integrations(self, tab_names: list[str], current_tab: int, current_deck: Deck,
-                           statuses: dict[str, str]) -> tuple[int, Deck, dict[str, str]]:
+    def _print_integrations(self, statuses: dict[str, str]):
         visible = [i for i in self.integrations.values() if statuses.get(i.name) != "disabled"]
         if not visible:
             self.frontend.print("No integrations require attention.")
-        else:
-            rows = [
-                (i.name, statuses[i.name], i.user_help() if statuses[i.name] == "disconnected" else None)
-                for i in visible
-            ]
-            self.frontend.integrations(rows)
+            return
+        rows = [
+            (i.name, statuses[i.name], i.user_help() if statuses[i.name] == "disconnected" else None)
+            for i in visible
+        ]
+        self.frontend.integrations(rows)
 
+
+    def status(self, integration: str = None):
+        if not integration:
+            self._print_integrations(self._refresh_integration_statuses())
+            return
+        target = self.integrations.get(integration.lower())
+        if not target:
+            self.frontend.error(f"Integration {integration!r} not found. Available integrations: {', '.join(self.integrations)}")
+            return
+        status = target.status()
+        self.frontend.integrations([(target.name, status, target.user_help() if status == "disconnected" else None)])
+
+
+    def _tab_integrations(self, tab_names: list[str], current_tab: int, current_deck: Deck,
+                           statuses: dict[str, str]) -> tuple[int, Deck, dict[str, str]]:
+        self._print_integrations(statuses)
         self.frontend.hint("Enter refresh · Tab next tab")
         choice = self.frontend.choice("", [], transient=True, abortable=False)
         if choice is None:

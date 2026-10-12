@@ -61,7 +61,7 @@ class OllamaIntegration:
                                                          keep_alive=keep_alive, options=options)
         except ConnectionError as e:
             raise OllamaIntegrationError(
-                f"Can't reach Ollama. Run 'setup {self.name}' to check the connection and see repair steps."
+                f"Can't reach Ollama. Run 'status {self.name}' to check the connection and see repair steps."
             ) from e
         except ResponseError as e:
             raise OllamaIntegrationError("AI request failed") from e

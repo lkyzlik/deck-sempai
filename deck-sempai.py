@@ -118,15 +118,14 @@ def show():
 
 
 @cli.command()
-def setup(integration: Optional[str] = typer.Argument(None, help="Name of a single integration to set up (anki, ollama, ordnet). If omitted, walks through all of them.")):
+def status(integration: Optional[str] = typer.Argument(None, help="Name of a single integration to check (anki, ollama, ordnet). If omitted, shows all enabled ones.")):
     """
-    Show the connection status of every integration (anki, ollama, ordnet), then walk
-    through any that are disconnected, offering to retry the connection or skip it.
+    Show the connection status of the integrations (anki, ollama, ordnet), with repair
+    steps for any that are disconnected.
 
-    If INTEGRATION is given, only that integration is checked; if it's disabled or
-    already running, this just prints a message instead of walking the repair steps.
+    If INTEGRATION is given, only that integration's status is shown.
     """
-    app.setup(integration)
+    app.status(integration)
 
 
 @cli.command("add-sound")

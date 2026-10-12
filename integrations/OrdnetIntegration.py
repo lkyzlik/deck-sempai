@@ -67,7 +67,7 @@ class OrdnetIntegration:
                 resp.raise_for_status()
             except httpx.HTTPError:
                 raise OrdnetIntegrationError(
-                    f"Can't reach ordnet.dk to fetch word page. Run 'setup {self.name}' to check the "
+                    f"Can't reach ordnet.dk to fetch word page. Run 'status {self.name}' to check the "
                     "connection and see repair steps."
                 )
             article = self._select_entry(resp.text, word, pos)

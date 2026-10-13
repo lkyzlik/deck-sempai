@@ -113,7 +113,7 @@ class AnkiExporter(StorageExporter):
     def export_deck(self, deck: Deck) -> DeckOpResult:
         try:
             self.ac.save_deck_meta(deck.name, deck.meta.to_dict())
-            existing_note_ids = self.ac.find_notes(f'deck:{deck.name}')
+            existing_note_ids = self.ac.find_notes(f'deck:"{deck.name}"')
         except AnkiIntegrationDisabledError as e:
             raise DeckOpError(self, str(e)) from e
         except AnkiIntegrationError as e:

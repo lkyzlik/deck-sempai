@@ -100,7 +100,7 @@ class AnkiIntegration:
 
 
     def update_note(self, note: dict) -> None:
-        return self._invoke("updateNoteFields", note=note)
+        return self._invoke("updateNote", note=note)
 
 
     def store_media_file(self, filename: str, path: Path) -> None:

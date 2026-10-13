@@ -39,48 +39,39 @@ class AnkiExporter(StorageExporter):
 
 
     def _cleanup_sounds(self, sounds: list[str]):
-        for sound in sounds:
-            try:
-                self.ac.delete_media_file(sound)
-            except AnkiIntegrationError as e:
-                self._warning(f"Can't cleanup sound {sound!r}: {e}")
+        for sound, outcome in zip(sounds, self.ac.delete_media_files(sounds)):
+            if isinstance(outcome, AnkiIntegrationError):
+                self._warning(f"Can't cleanup sound {sound!r}: {outcome}")
 
 
-    def _export_note(self, note: Note, existing_note_ids: list[int], deck_name: str) -> NoteOpResult:
-        # Update media
-        added_sounds = []
+    def _store_sounds(self, notes: list[Note], results: list[NoteOpResult]) -> list[list[str]]:
+        """Uploads new sounds (those with a temp file) and marks notes with a failed upload as failed.
+        Returns the uploaded filenames per note."""
+        files = [(i, sound, self.media_dir / sound)
+                 for i, note in enumerate(notes)
+                 for field in [note.front, note.back]
+                 for sound in field.sounds
+                 if (self.media_dir / sound).is_file()]  # No temp file means the sound didn't change
 
-        for field in [note.front, note.back]:
-            for sound in field.sounds:
-                sound_file = self.media_dir / sound
-                try:
-                    self.ac.store_media_file(sound, sound_file)
-                    sound_file.unlink(missing_ok=True)  # Remove the temporary file
-                    added_sounds.append(sound)
-                except AnkiIntegrationDisabledError as e:
-                    raise DeckOpError(self, str(e)) from e
-                except AnkiIntegrationError as e:
-                    self._warning(f"Can't add sound {sound!r}: {e}")
-                    self._cleanup_sounds(added_sounds)
-                    return NoteOpResult("failed")
-                except IOError as e:
-                    # No temp file means there has been no change to the sound
-                    pass
+        outcomes = self.ac.store_media_files([(sound, path) for _, sound, path in files])
 
-        # Update texts
-        try:
-            if note.id in existing_note_ids:
-                self.ac.update_note(self._update_note_to_anki(note))
+        added_sounds = [[] for _ in notes]
+        for (i, sound, path), outcome in zip(files, outcomes):
+            if isinstance(outcome, AnkiIntegrationError):
+                self._warning(f"Can't add sound {sound!r}: {outcome}")
+                results[i] = NoteOpResult("failed")
             else:
-                self.ac.add_note(self._add_note_to_anki(note, deck_name))
-        except AnkiIntegrationDisabledError as e:
-            raise DeckOpError(self, str(e)) from e
-        except AnkiIntegrationError as e:
-            self._warning(f"Can't add note {(note.front.get_text_oneline())!r}: {e}")
-            self._cleanup_sounds(added_sounds)
-            return NoteOpResult("failed")
+                path.unlink(missing_ok=True)  # Remove the temporary file
+                added_sounds[i].append(sound)
+        return added_sounds
 
-        return NoteOpResult("ok")
+
+    def _write_notes(self, indices: list[int], payloads: list[dict], write, deck: Deck,
+                     results: list[NoteOpResult]):
+        for i, outcome in zip(indices, write(payloads)):
+            if isinstance(outcome, AnkiIntegrationError):
+                self._warning(f"Can't add note {(deck.notes[i].front.get_text_oneline())!r}: {outcome}")
+                results[i] = NoteOpResult("failed")
 
 
     def create_deck(self, name: str) -> None:
@@ -119,9 +110,24 @@ class AnkiExporter(StorageExporter):
         except AnkiIntegrationError as e:
             raise DeckOpError(self, e)
 
-        results = []
-        for note in deck.notes:
-            result = self._export_note(note, existing_note_ids, deck.name)
-            results.append(result)
+        existing_note_ids = set(existing_note_ids)
+        results = [NoteOpResult("ok") for _ in deck.notes]
+
+        try:
+            added_sounds = self._store_sounds(deck.notes, results)
+
+            ok = [i for i, result in enumerate(results) if result.status == "ok"]
+            updates = [i for i in ok if deck.notes[i].id in existing_note_ids]
+            adds = [i for i in ok if deck.notes[i].id not in existing_note_ids]
+            self._write_notes(updates, [self._update_note_to_anki(deck.notes[i]) for i in updates],
+                              self.ac.update_notes, deck, results)
+            self._write_notes(adds, [self._add_note_to_anki(deck.notes[i], deck.name) for i in adds],
+                              self.ac.add_notes, deck, results)
+
+            # Sounds of failed notes would be left unused in Anki
+            self._cleanup_sounds([sound for i, result in enumerate(results) if result.status == "failed"
+                                  for sound in added_sounds[i]])
+        except AnkiIntegrationDisabledError as e:
+            raise DeckOpError(self, str(e)) from e
 
         return DeckOpResult(results, op_title="Exported")

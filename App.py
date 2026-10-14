@@ -362,7 +362,13 @@ class App:
                 if kwargs is None:
                     return
 
-            deck.meta.update(kwargs)
+            unknown = [key for key in kwargs if key not in DeckMeta.DEFAULTS]
+            if unknown:
+                self.frontend.error(f"Unknown metadata key(s): {', '.join(unknown)}. "
+                                    f"Valid keys: {', '.join(DeckMeta.DEFAULTS)}")
+                return
+
+            deck.meta.update(kwargs, self.frontend)
 
             self.frontend.deck_meta(deck.meta)
 

@@ -1,4 +1,5 @@
 import base64
+import json
 import requests
 
 from pathlib import Path
@@ -6,7 +7,7 @@ from pathlib import Path
 class AnkiIntegration:
     name = "anki"
 
-    METADATA_KEY = "sempai"
+    LEGACY_METADATA_KEY = "sempai"
     MULTI_BATCH_SIZE = 100  # AnkiConnect's batch item limit
 
     def __init__(self, host="localhost", port=8765):
@@ -172,33 +173,42 @@ class AnkiIntegration:
         return config
 
 
-    def save_deck_config(self, deck_name: str, config: dict) -> None:
-        return self._invoke("saveDeckConfig", config=config)
-
-
-    def _private_config_name(self, deck_name: str) -> str:
+    def _private_config_prefix(self, deck_name: str) -> str:
         return f"sempai::{deck_name}"
+
+
+    def _is_private_config(self, config: dict, deck_name: str) -> bool:
+        # Decks share config groups (e.g. "Default") unless split off. Only trust metadata
+        # in a group we've privately cloned for this deck, named "<prefix> <meta as JSON>".
+        prefix = self._private_config_prefix(deck_name)
+        return config.get("name") == prefix or config.get("name", "").startswith(prefix + " ")
 
 
     def get_deck_meta(self, deck_name: str) -> dict:
         config = self.get_deck_config(deck_name)
-        # Decks share config groups (e.g. "Default") unless split off. Only trust
-        # metadata found in a group we've privately cloned for this deck, otherwise
-        # it belongs to whichever other deck last wrote to the shared group.
-        if config.get("name") != self._private_config_name(deck_name):
+        if not self._is_private_config(config, deck_name):
             return {}
-        return config.get(self.METADATA_KEY, {})
+        meta_json = config["name"][len(self._private_config_prefix(deck_name)):].strip()
+        if not meta_json:
+            return config.get(self.LEGACY_METADATA_KEY, {})  # Saved by older AnkiConnect
+        try:
+            meta = json.loads(meta_json)
+        except json.JSONDecodeError:
+            return {}
+        return meta if isinstance(meta, dict) else {}
 
 
     def save_deck_meta(self, deck_name: str, meta: dict) -> None:
+        # New AnkiConnect rejects custom config keys and can't rename groups, so the metadata
+        # lives in the name of a fresh clone of the deck's group, replacing our old private one
+        name = f"{self._private_config_prefix(deck_name)} {json.dumps(meta)}"
         config = self.get_deck_config(deck_name)
-        private_name = self._private_config_name(deck_name)
-        if config.get("name") != private_name:
-            new_id = self._invoke("cloneDeckConfigId", cloneFrom=config["id"], name=private_name)
-            self._invoke("setDeckConfigId", decks=[deck_name], configId=new_id)
-            config = self.get_deck_config(deck_name)
-        config[self.METADATA_KEY] = meta
-        self.save_deck_config(deck_name, config)
+        if config["name"] == name:
+            return
+        new_id = self._invoke("cloneDeckConfigId", cloneFrom=config["id"], name=name)
+        self._invoke("setDeckConfigId", decks=[deck_name], configId=new_id)
+        if self._is_private_config(config, deck_name):
+            self._invoke("removeDeckConfigId", configId=config["id"])
 
 
 class AnkiIntegrationError(Exception):

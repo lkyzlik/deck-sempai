@@ -11,6 +11,9 @@ class DeckMetaAttr(Protocol):
     def __str__(self) -> str:
         ...
 
+    def short(self) -> str:
+        ...
+
     @classmethod
     def from_str(cls, value: str) -> Self:
         ...
@@ -46,7 +49,7 @@ class DeckMeta:
 
 
     def to_dict(self) -> dict:
-        return {k: str(getattr(self, k)) for k in self.DEFAULTS}
+        return {k: getattr(self, k).short() for k in self.DEFAULTS}
 
 
 class Field:

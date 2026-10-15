@@ -127,7 +127,7 @@ class TuiApp(App):
         return current_tab, current_deck
 
 
-    def _tab_deck(self, tab_names: list[str], current_tab: int, current_deck: Deck) -> tuple[int, Deck]:
+    def _tab_decks(self, tab_names: list[str], current_tab: int, current_deck: Deck) -> tuple[int, Deck]:
         exporter = self._storage_exporter()
         if not exporter:
             self.frontend.print("Deck management is not supported by the configured exporter.")
@@ -212,8 +212,8 @@ class TuiApp(App):
             self.frontend.error("The current frontend does not support the TUI.")
             return
 
-        TAB_SHOW, TAB_DECK, TAB_ADD, TAB_TRANSFORM, TAB_INTEGRATIONS = range(5)
-        tab_labels = ["Cards", "Deck", "Add", "Transform", "Integrations"]
+        TAB_SHOW, TAB_DECKS, TAB_ADD, TAB_TRANSFORM, TAB_INTEGRATIONS = range(5)
+        tab_labels = ["Cards", "Decks", "Add", "Transform", "Integrations"]
 
         current_tab = TAB_SHOW
         previous_tab = None
@@ -238,8 +238,8 @@ class TuiApp(App):
                 try:
                     if current_tab == TAB_SHOW:
                         current_tab, current_deck = self._tab_show(tab_names, current_tab, current_deck)
-                    elif current_tab == TAB_DECK:
-                        current_tab, current_deck = self._tab_deck(tab_names, current_tab, current_deck)
+                    elif current_tab == TAB_DECKS:
+                        current_tab, current_deck = self._tab_decks(tab_names, current_tab, current_deck)
                     elif current_tab == TAB_ADD:
                         current_tab, current_deck = self._tab_add(tab_names, current_tab, current_deck)
                     elif current_tab == TAB_TRANSFORM:

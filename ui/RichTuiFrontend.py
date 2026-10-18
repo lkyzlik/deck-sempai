@@ -524,14 +524,15 @@ class RichTuiFrontend:
 
     def deck(self, deck: Deck, result: DeckOpResult = None, include_header: bool = True,
               top_row: int = None, max_top_row: int = None, height: int = None, col_width: int = 30,
-              scrollable: bool = False, on_scroll: Callable[[int], None] = None):
+              scrollable: bool = False, on_scroll: Callable[[int], None] = None,
+              space_hint: str = None) -> str | None:
 
         if include_header:
             self.deck_name(deck.name)
             self.deck_meta(deck.meta)
 
         if self._fullscreen:
-            return self._deck_fullscreen(deck, result, top_row, col_width, scrollable, on_scroll)
+            return self._deck_fullscreen(deck, result, top_row, col_width, scrollable, on_scroll, space_hint)
 
         if not scrollable:
             self.console.print(self.deck_notes(deck, result, top_row, height, col_width))
@@ -573,7 +574,8 @@ class RichTuiFrontend:
 
 
     def _deck_fullscreen(self, deck: Deck, result: DeckOpResult, top_row: int, col_width: int,
-                          scrollable: bool, on_scroll: Callable[[int], None]):
+                          scrollable: bool, on_scroll: Callable[[int], None],
+                          space_hint: str = None) -> str | None:
         # -3 reserves the blank line + hint line this entry adds below the table, plus 1 of
         # slack so it doesn't exactly fill (and risk overflowing) the available body height.
         height = max(1, self._available_body_height() - 3)
@@ -599,6 +601,8 @@ class RichTuiFrontend:
             on_scroll(current_top_row)
 
         hint_parts = ["Enter refresh"]
+        if space_hint:
+            hint_parts.append(f"Space {space_hint}")
         if can_scroll:
             hint_parts.append("↑/↓ scroll")
         hint_parts += ["Tab next tab", "Ctrl+C exit"]
@@ -616,7 +620,9 @@ class RichTuiFrontend:
             if key in ("tab", "shift+tab", "left", "right"):
                 raise TabSwitch(key)
             if key == "enter":
-                return
+                return "enter"
+            if key == " " and space_hint:
+                return "space"
             scrolled = False
             if can_scroll and key == "up" and current_top_row > 1:
                 current_top_row -= 1
@@ -641,6 +647,29 @@ class RichTuiFrontend:
             if scrolled and on_scroll:
                 on_scroll(current_top_row)
             self._body_parts[-1] = render_entry()
+            self._redraw()
+
+
+    # Shows a hint and waits for one of `keys` ("enter"/"space"), handling tab switching and
+    # log keys meanwhile. Fullscreen only.
+    def read_action(self, hint: str, keys: list[str]) -> str:
+        self.hint(hint)
+        while True:
+            key = self._read_key()
+            if key in ("tab", "shift+tab", "left", "right"):
+                raise TabSwitch(key)
+            if key == " ":
+                key = "space"
+            if key in keys:
+                return key
+            if key == "pageup":
+                self._log_scroll = min(self._log_scroll + 1, max(0, len(self._log_buffer) - 4))
+            elif key == "pagedown":
+                self._log_scroll = max(0, self._log_scroll - 1)
+            elif key == "ctrl+l":
+                self._log_visible = not self._log_visible
+            else:
+                continue
             self._redraw()
 
 
@@ -1420,9 +1449,8 @@ class RichTuiFrontend:
         items = list(meta.to_dict().items())
         lines = []
         for i, (key, value) in enumerate(items):
-            branch = "├─ " if i < len(items) - 1 else "└─ "
             text = Text()
-            text.append(f"{branch}{key}: ", style=self.COLOR_SECONDARY + " bold")
+            text.append(f"◆ {key}: ", style=self.COLOR_SECONDARY + " bold")
             text.append(str(value), style=self.COLOR_SECONDARY)
             lines.append(text)
 

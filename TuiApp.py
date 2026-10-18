@@ -13,6 +13,7 @@ class TuiApp(App):
     def __init__(self):
         super().__init__()
         self._show_top_row = None
+        self._show_meta = False
         self._deck_load_failed = False
 
 
@@ -122,8 +123,19 @@ class TuiApp(App):
             return current_tab, current_deck
 
         self._refresh_status_bar(current_deck)
-        self.frontend.deck(current_deck, include_header=False, top_row=self._show_top_row,
-                           scrollable=True, on_scroll=remember)
+        if self._show_meta:
+            self.frontend.deck_meta(current_deck.meta)
+            action = self.frontend.read_action("Enter edit · Space cards · Tab next tab · Ctrl+C exit",
+                                               ["enter", "space"])
+            if action == "enter":
+                self.frontend.clear()
+                self.meta()
+                return current_tab, self._load_deck_safe()
+        else:
+            action = self.frontend.deck(current_deck, include_header=False, top_row=self._show_top_row,
+                                        scrollable=True, on_scroll=remember, space_hint="metadata")
+        if action == "space":
+            self._show_meta = not self._show_meta
         return current_tab, current_deck
 
 
@@ -213,7 +225,7 @@ class TuiApp(App):
             return
 
         TAB_SHOW, TAB_DECKS, TAB_ADD, TAB_TRANSFORM, TAB_INTEGRATIONS = range(5)
-        tab_labels = ["Cards", "Decks", "Add", "Transform", "Integrations"]
+        tab_labels = ["Show", "Decks", "Add", "Transform", "Integrations"]
 
         current_tab = TAB_SHOW
         previous_tab = None
@@ -228,6 +240,8 @@ class TuiApp(App):
 
                 if current_tab == TAB_INTEGRATIONS and previous_tab != TAB_INTEGRATIONS:
                     statuses = self._refresh_integration_statuses()
+                if current_tab == TAB_SHOW and previous_tab != TAB_SHOW:
+                    self._show_meta = False
                 previous_tab = current_tab
 
                 tab_names = list(tab_labels)

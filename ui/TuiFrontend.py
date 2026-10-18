@@ -57,7 +57,11 @@ class TuiFrontend(Frontend, Protocol):
 
     def deck(self, deck: Deck, result: DeckOpResult = None, include_header: bool = True,
              top_row: int = None, max_top_row: int = None, height: int = None, col_width: int = 40,
-             scrollable: bool = False, on_scroll: Callable[[int], None] = None):
+             scrollable: bool = False, on_scroll: Callable[[int], None] = None,
+             space_hint: str = None) -> str | None:
+        ...
+
+    def read_action(self, hint: str, keys: list[str]) -> str:
         ...
 
     def choice(self, prompt: str, options: list[str], transient: bool = False,

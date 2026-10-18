@@ -481,10 +481,14 @@ class App:
         self._add_notes(entries, interactive=True)
 
 
-    def show(self):
+    def show(self, only_meta: bool = False):
         try:
             deck: Deck = self._load_deck()
-            self.frontend.deck(deck)
+            if only_meta:
+                self.frontend.deck_name(deck.name)
+                self.frontend.deck_meta(deck.meta)
+            else:
+                self.frontend.deck(deck)
 
         except DeckOpError as e:
             self.frontend.error(str(e))

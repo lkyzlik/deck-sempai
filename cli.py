@@ -117,11 +117,11 @@ def rm_sound(side: Optional[str] = typer.Argument(None, help=f"Comma-separated s
 
 
 @cli.command()
-def show():
+def show(only_meta: bool = typer.Option(False, "--only-meta", help="Show only the deck name and metadata, without notes.")):
     """
     Show the current deck.
     """
-    app.show()
+    app.show(only_meta)
 
 
 @cli.command()

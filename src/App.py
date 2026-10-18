@@ -54,7 +54,7 @@ class App:
         self.config = Config.load()
         self.state = AppState()
 
-        with open(Path(__file__).parent / "pyproject.toml", "rb") as f:
+        with open(Path(__file__).parent.parent / "pyproject.toml", "rb") as f:
             self.version = tomllib.load(f)["project"]["version"]
 
         data_dir = Path(user_data_dir("deck-sempai"))

@@ -8,7 +8,7 @@ from tools.grammar.GrammarTool import GrammarTool, GrammarToolError, GrammarTool
 
 class OllamaGrammarTool(GrammarTool):
     def __init__(self, lang: Language, ollama: OllamaIntegration, model: str = None,
-                prompts_path: Path = "prompts.toml"):
+                prompts_path: Path = None):
         super().__init__(lang)
         self.ollama = ollama
         self.model = model

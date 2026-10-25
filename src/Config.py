@@ -1,8 +1,23 @@
+import shutil
 import toml
 
 from dacite import from_dict
 from dataclasses import dataclass, field
 from pathlib import Path
+from platformdirs import user_config_dir
+
+
+CONFIG_DIR = Path(user_config_dir("deck-sempai"))
+DEFAULTS_DIR = Path(__file__).parent / "default_config"
+
+
+# Returns the user's copy of a config file, creating it from the shipped default on first run.
+def user_config_file(name: str) -> Path:
+    path = CONFIG_DIR / name
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(DEFAULTS_DIR / name, path)
+    return path
 
 
 @dataclass
@@ -32,7 +47,7 @@ class Config:
     commands: CommandsConfig = field(default_factory=CommandsConfig)
 
     @staticmethod
-    def load(path: Path = Path("config.toml")) -> "Config":
-        with open(path, "r") as f:
+    def load(path: Path = None) -> "Config":
+        with open(path or user_config_file("config.toml"), "r") as f:
             data = toml.load(f)
         return from_dict(Config, data)

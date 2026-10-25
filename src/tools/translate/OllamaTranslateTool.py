@@ -8,7 +8,7 @@ from tools.translate.TranslateTool import TranslateTool, TranslateToolError, Tra
 
 class OllamaTranslateTool(TranslateTool):
     def __init__(self, lang_from: Language, lang_to: Language, ollama: OllamaIntegration, model: str = None,
-                prompts_path: Path = "prompts.toml"):
+                prompts_path: Path = None):
         super().__init__(lang_from, lang_to)
         self.ollama = ollama
         self.model = model

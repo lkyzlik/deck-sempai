@@ -3,6 +3,7 @@ import toml
 from dataclasses import dataclass
 from pathlib import Path
 
+from Config import user_config_file
 from Enums import Language
 
 
@@ -19,8 +20,8 @@ class PromptPlaceholders:
 
 
 class PromptLoader:
-    def __init__(self, source: Path):
-        with open(source, "r") as f:
+    def __init__(self, source: Path = None):
+        with open(source or user_config_file("prompts.toml"), "r") as f:
             self.prompts = toml.load(f)
 
 

@@ -12,7 +12,7 @@ from transformers.Transformer import Transformer
 
 
 class TranslateOllamaTransformer(Transformer):
-    def __init__(self, logger: Logger, ollama: OllamaIntegration, prompts_path: Path = "prompts.toml"):
+    def __init__(self, logger: Logger, ollama: OllamaIntegration, prompts_path: Path = None):
         super().__init__(logger)
         self.ollama = ollama
         self.prompts_path = prompts_path

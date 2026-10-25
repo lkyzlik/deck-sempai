@@ -13,7 +13,6 @@ class TuiApp(App):
     def __init__(self):
         super().__init__()
         self._show_top_row = None
-        self._show_meta = False
         self._deck_load_failed = False
 
 
@@ -105,10 +104,9 @@ class TuiApp(App):
         return self.frontend.preview(prompt, deck, result)
 
 
-    def _tab_show(self, tab_names: list[str], current_tab: int, current_deck: Deck) -> tuple[int, Deck]:
-        def remember(row: int):
-            self._show_top_row = row
-
+    # Reloads the deck for the Cards/Metadata tabs. On failure shows the error, waits for a key and
+    # returns None.
+    def _reload_tab_deck(self) -> Deck | None:
         try:
             current_deck = self._load_deck()
             self._deck_load_failed = False
@@ -120,23 +118,36 @@ class TuiApp(App):
             self.frontend.error(str(e))
             self.frontend.hint("Enter refresh · Tab next tab · Ctrl+C exit")
             self.frontend.choice("", [], transient=True, abortable=False)
-            return current_tab, current_deck
+            return None
 
         self._refresh_status_bar(current_deck)
-        if self._show_meta:
-            self.frontend.deck_meta(current_deck.meta)
-            action = self.frontend.read_action("Enter edit · Space cards · Tab next tab · Ctrl+C exit",
-                                               ["enter", "space"])
-            if action == "enter":
-                self.frontend.clear()
-                self.meta()
-                return current_tab, self._load_deck_safe()
-        else:
-            action = self.frontend.deck(current_deck, include_header=False, top_row=self._show_top_row,
-                                        scrollable=True, on_scroll=remember, space_hint="metadata")
-        if action == "space":
-            self._show_meta = not self._show_meta
-        return current_tab, current_deck
+        return current_deck
+
+
+    def _tab_cards(self, tab_names: list[str], current_tab: int, current_deck: Deck) -> tuple[int, Deck]:
+        def remember(row: int):
+            self._show_top_row = row
+
+        deck = self._reload_tab_deck()
+        if deck is None:
+            return current_tab, Deck(self.state.current_deck)
+
+        self.frontend.deck(deck, include_header=False, top_row=self._show_top_row,
+                           scrollable=True, on_scroll=remember)
+        return current_tab, deck
+
+
+    def _tab_meta(self, tab_names: list[str], current_tab: int, current_deck: Deck) -> tuple[int, Deck]:
+        deck = self._reload_tab_deck()
+        if deck is None:
+            return current_tab, Deck(self.state.current_deck)
+
+        self.frontend.deck_meta(deck.meta)
+        self.frontend.hint("Enter edit · Tab next tab · Ctrl+C exit")
+        self.frontend.choice("", [], transient=True, abortable=False)
+        self.frontend.clear()
+        self.meta()
+        return current_tab, self._load_deck_safe()
 
 
     def _tab_decks(self, tab_names: list[str], current_tab: int, current_deck: Deck) -> tuple[int, Deck]:
@@ -224,10 +235,10 @@ class TuiApp(App):
             self.frontend.error("The current frontend does not support the TUI.")
             return
 
-        TAB_SHOW, TAB_DECKS, TAB_ADD, TAB_TRANSFORM, TAB_INTEGRATIONS = range(5)
-        tab_labels = ["Show", "Decks", "Add", "Transform", "Integrations"]
+        TAB_CARDS, TAB_META, TAB_DECKS, TAB_ADD, TAB_TRANSFORM, TAB_INTEGRATIONS = range(6)
+        tab_labels = ["Cards", "Metadata", "Decks", "Add", "Transform", "Integrations"]
 
-        current_tab = TAB_SHOW
+        current_tab = TAB_CARDS
         previous_tab = None
         current_deck = self._load_deck_safe()
         statuses = self._refresh_integration_statuses()
@@ -240,8 +251,6 @@ class TuiApp(App):
 
                 if current_tab == TAB_INTEGRATIONS and previous_tab != TAB_INTEGRATIONS:
                     statuses = self._refresh_integration_statuses()
-                if current_tab == TAB_SHOW and previous_tab != TAB_SHOW:
-                    self._show_meta = False
                 previous_tab = current_tab
 
                 tab_names = list(tab_labels)
@@ -250,8 +259,10 @@ class TuiApp(App):
                 self.frontend.tab_bar(tab_names, current_tab)
 
                 try:
-                    if current_tab == TAB_SHOW:
-                        current_tab, current_deck = self._tab_show(tab_names, current_tab, current_deck)
+                    if current_tab == TAB_CARDS:
+                        current_tab, current_deck = self._tab_cards(tab_names, current_tab, current_deck)
+                    elif current_tab == TAB_META:
+                        current_tab, current_deck = self._tab_meta(tab_names, current_tab, current_deck)
                     elif current_tab == TAB_DECKS:
                         current_tab, current_deck = self._tab_decks(tab_names, current_tab, current_deck)
                     elif current_tab == TAB_ADD:

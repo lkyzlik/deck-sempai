@@ -85,6 +85,10 @@ class AnkiIntegration:
         self._invoke("deleteDecks", decks=[deck_name], cardsToo=True)
 
 
+    def delete_notes(self, note_ids: list[int]) -> list:
+        return self.multi([{"action": "deleteNotes", "params": {"notes": [note_id]}} for note_id in note_ids])
+
+
     def find_notes(self, query: str) -> list[int]:
         return self._invoke("findNotes", query=query)
 

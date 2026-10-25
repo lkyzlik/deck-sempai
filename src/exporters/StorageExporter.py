@@ -1,15 +1,20 @@
 from abc import ABC, abstractmethod
 
+from Deck import Deck
+from DeckOperator import DeckOpResult
 from exporters.Exporter import Exporter
 
 
 class StorageExporter(Exporter, ABC):
+    """Exporting to permanent storage also involves managing the stored decks."""
+
     @abstractmethod
-    def create_deck(self, name: str) -> None:
+    def remove_notes(self, deck: Deck) -> DeckOpResult:
+        """Removes the given notes from the deck of the same name, never the deck itself."""
         pass
 
     @abstractmethod
-    def delete_deck(self, name: str) -> None:
+    def remove_deck(self, name: str) -> None:
         pass
 
     @abstractmethod

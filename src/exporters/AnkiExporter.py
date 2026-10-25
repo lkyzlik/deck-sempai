@@ -74,16 +74,34 @@ class AnkiExporter(StorageExporter):
                 results[i] = NoteOpResult("failed")
 
 
-    def create_deck(self, name: str) -> None:
+    def remove_notes(self, deck: Deck) -> DeckOpResult:
         try:
-            self.ac.create_deck(name)
+            existing_note_ids = set(self.ac.find_notes(f'deck:"{deck.name}"'))
         except AnkiIntegrationDisabledError as e:
             raise DeckOpError(self, str(e)) from e
         except AnkiIntegrationError as e:
             raise DeckOpError(self, str(e))
 
+        # Notes outside the deck are skipped, so a stale id can't remove a note from another deck
+        results = [NoteOpResult("skipped") for _ in deck.notes]
+        removes = [i for i, note in enumerate(deck.notes) if note.id in existing_note_ids]
 
-    def delete_deck(self, name: str) -> None:
+        try:
+            outcomes = self.ac.delete_notes([deck.notes[i].id for i in removes])
+        except AnkiIntegrationDisabledError as e:
+            raise DeckOpError(self, str(e)) from e
+
+        for i, outcome in zip(removes, outcomes):
+            if isinstance(outcome, AnkiIntegrationError):
+                self._warning(f"Can't remove note {(deck.notes[i].front.get_text_oneline())!r}: {outcome}")
+                results[i] = NoteOpResult("failed")
+            else:
+                results[i] = NoteOpResult("ok")
+
+        return DeckOpResult(results, op_title="Removed")
+
+
+    def remove_deck(self, name: str) -> None:
         try:
             self.ac.delete_deck(name)
         except AnkiIntegrationDisabledError as e:
@@ -103,6 +121,7 @@ class AnkiExporter(StorageExporter):
 
     def export_deck(self, deck: Deck) -> DeckOpResult:
         try:
+            self.ac.create_deck(deck.name)  # No-op if the deck already exists
             self.ac.save_deck_meta(deck.name, deck.meta.to_dict())
             existing_note_ids = self.ac.find_notes(f'deck:"{deck.name}"')
         except AnkiIntegrationDisabledError as e:

@@ -297,11 +297,9 @@ class App:
             return
 
         try:
-            exporter.create_deck(name)
-            if metadata:
-                deck = Deck(name)
-                deck.meta.update(metadata)
-                exporter.export_deck(deck)
+            deck = Deck(name)
+            deck.meta.update(metadata)
+            exporter.export_deck(deck)
         except DeckOpError as e:
             self.frontend.error(str(e))
             return
@@ -329,7 +327,7 @@ class App:
             return
 
         try:
-            exporter.delete_deck(name)
+            exporter.remove_deck(name)
         except DeckOpError as e:
             self.frontend.error(str(e))
             return

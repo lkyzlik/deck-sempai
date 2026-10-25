@@ -9,9 +9,9 @@ from integrations.AnkiIntegration import AnkiIntegration, AnkiIntegrationError, 
 
 
 class AnkiExporter(StorageExporter):
-    def __init__(self,  logger: Logger, ac: AnkiIntegration, media_dir: Path):
+    def __init__(self,  logger: Logger, anki: AnkiIntegration, media_dir: Path):
         super().__init__(logger)
-        self.ac = ac
+        self.anki = anki
         self.media_dir = media_dir
 
 
@@ -39,7 +39,7 @@ class AnkiExporter(StorageExporter):
 
 
     def _cleanup_sounds(self, sounds: list[str]):
-        for sound, outcome in zip(sounds, self.ac.delete_media_files(sounds)):
+        for sound, outcome in zip(sounds, self.anki.delete_media_files(sounds)):
             if isinstance(outcome, AnkiIntegrationError):
                 self._warning(f"Can't cleanup sound {sound!r}: {outcome}")
 
@@ -53,7 +53,7 @@ class AnkiExporter(StorageExporter):
                  for sound in field.sounds
                  if (self.media_dir / sound).is_file()]  # No temp file means the sound didn't change
 
-        outcomes = self.ac.store_media_files([(sound, path) for _, sound, path in files])
+        outcomes = self.anki.store_media_files([(sound, path) for _, sound, path in files])
 
         added_sounds = [[] for _ in notes]
         for (i, sound, path), outcome in zip(files, outcomes):
@@ -76,7 +76,7 @@ class AnkiExporter(StorageExporter):
 
     def remove_notes(self, deck: Deck) -> DeckOpResult:
         try:
-            existing_note_ids = set(self.ac.find_notes(f'deck:"{deck.name}"'))
+            existing_note_ids = set(self.anki.find_notes(f'deck:"{deck.name}"'))
         except AnkiIntegrationDisabledError as e:
             raise DeckOpError(self, str(e)) from e
         except AnkiIntegrationError as e:
@@ -87,7 +87,7 @@ class AnkiExporter(StorageExporter):
         removes = [i for i, note in enumerate(deck.notes) if note.id in existing_note_ids]
 
         try:
-            outcomes = self.ac.delete_notes([deck.notes[i].id for i in removes])
+            outcomes = self.anki.delete_notes([deck.notes[i].id for i in removes])
         except AnkiIntegrationDisabledError as e:
             raise DeckOpError(self, str(e)) from e
 
@@ -103,7 +103,7 @@ class AnkiExporter(StorageExporter):
 
     def remove_deck(self, name: str) -> None:
         try:
-            self.ac.delete_deck(name)
+            self.anki.delete_deck(name)
         except AnkiIntegrationDisabledError as e:
             raise DeckOpError(self, str(e)) from e
         except AnkiIntegrationError as e:
@@ -112,7 +112,7 @@ class AnkiExporter(StorageExporter):
 
     def get_decks(self) -> list[str]:
         try:
-            return self.ac.deck_names()
+            return self.anki.deck_names()
         except AnkiIntegrationDisabledError as e:
             raise DeckOpError(self, str(e)) from e
         except AnkiIntegrationError as e:
@@ -121,9 +121,9 @@ class AnkiExporter(StorageExporter):
 
     def export_deck(self, deck: Deck) -> DeckOpResult:
         try:
-            self.ac.create_deck(deck.name)  # No-op if the deck already exists
-            self.ac.save_deck_meta(deck.name, deck.meta.to_dict())
-            existing_note_ids = self.ac.find_notes(f'deck:"{deck.name}"')
+            self.anki.create_deck(deck.name)  # No-op if the deck already exists
+            self.anki.save_deck_meta(deck.name, deck.meta.to_dict())
+            existing_note_ids = self.anki.find_notes(f'deck:"{deck.name}"')
         except AnkiIntegrationDisabledError as e:
             raise DeckOpError(self, str(e)) from e
         except AnkiIntegrationError as e:
@@ -139,9 +139,9 @@ class AnkiExporter(StorageExporter):
             updates = [i for i in ok if deck.notes[i].id in existing_note_ids]
             adds = [i for i in ok if deck.notes[i].id not in existing_note_ids]
             self._write_notes(updates, [self._update_note_to_anki(deck.notes[i]) for i in updates],
-                              self.ac.update_notes, deck, results)
+                              self.anki.update_notes, deck, results)
             self._write_notes(adds, [self._add_note_to_anki(deck.notes[i], deck.name) for i in adds],
-                              self.ac.add_notes, deck, results)
+                              self.anki.add_notes, deck, results)
 
             # Sounds of failed notes would be left unused in Anki
             self._cleanup_sounds([sound for i, result in enumerate(results) if result.status == "failed"

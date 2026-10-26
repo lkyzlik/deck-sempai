@@ -17,3 +17,10 @@ dependencies = [
     "toml>=0.10.2",
     "typer>=0.24.1",
 ]
+
+[project.scripts]
+sempai = "deck_sempai:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

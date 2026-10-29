@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
-sempai = "deck_sempai:cli"
+sempai = "deck_sempai.cli:cli"
 
 [build-system]
 requires = ["hatchling"]

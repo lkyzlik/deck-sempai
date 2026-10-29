@@ -1,0 +1,35 @@
+from pathlib import Path
+
+from deck_sempai.Deck import Deck
+from deck_sempai.DeckOperator import DeckOpResult, DeckOpError
+from deck_sempai.Enums import Language
+
+from deck_sempai.ui.Logger import Logger
+from deck_sempai.integrations.OrdnetIntegration import OrdnetIntegration
+from deck_sempai.tools.grammar.OrdnetGrammarTool import OrdnetGrammarTool
+from deck_sempai.transformers.AddGrammarTransformer import AddGrammarTransformer
+from deck_sempai.transformers.Transformer import Transformer
+
+
+class AddGrammarOrdnetTransformer(Transformer):
+    def __init__(self, logger: Logger, ordnet: OrdnetIntegration, media_dir: Path):
+        super().__init__(logger)
+        self.ordnet = ordnet
+        self.media_dir = media_dir
+
+
+    def transform_deck(self, deck: Deck, side: str = None, lang: str = None,
+                       rule: str = None) -> DeckOpResult:
+        if not lang:
+            raise DeckOpError(self, "Missing argument: lang")
+        try:
+            lang = Language(lang)
+        except ValueError:
+            raise DeckOpError(self, "Invalid argument: lang, supported: " +
+                                    ', '.join([l.value for l in Language]))
+
+        if lang != Language.DANISH:
+            raise DeckOpError(self, f"'ordnet.dk' grammar tool only supports Danish, not {lang!s}")
+
+        tool = OrdnetGrammarTool(lang, self.ordnet, self.media_dir)
+        return AddGrammarTransformer(self.logger, tool).transform_deck(deck, side=side, rule=rule)

@@ -19,8 +19,13 @@ cli = typer.Typer()
 @cli.callback(invoke_without_command=True)
 def main(ctx: typer.Context):
     """
-    Manage Anki flashcard decks. If called with no command, runs an interactive menu
-    to switch decks, add/transform cards, or create/delete decks.
+    Manage flashcard decks. Runs an interactive TUI if no command is provided.
+
+    To get started:
+    1. Create a new deck using the 'create' command.
+    2. Add notes to the deck using the 'add' command.
+    3. See the current deck using the 'show' command.
+    4. Get detailed command help using the '--help' option with any command.
     """
     if ctx.invoked_subcommand is None:
         app.tui()

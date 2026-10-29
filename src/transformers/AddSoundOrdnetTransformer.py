@@ -69,7 +69,7 @@ class AddSoundOrdnetTransformer(Transformer):
             return NoteOpResult("failed")
 
         try:
-            sound_path = self._download_sound(word, pos, f"ordnet_{deck_name}_{word}.mp3")
+            sound_path = self._download_sound(word, pos, f"ordnet_{word}.mp3")
             field.add_sound(sound_path.name)
         except OrdnetIntegrationDisabledError as e:
             raise DeckOpError(self, str(e)) from e

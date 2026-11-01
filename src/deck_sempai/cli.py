@@ -64,6 +64,14 @@ def add_sound(side: Optional[str] = typer.Argument(None, help=f"Comma-separated 
     app.add_sound(side)
 
 
+@cli.command()
+def config():
+    """
+    Open the configuration file for editing ($VISUAL/$EDITOR, or the system default app).
+    """
+    app.config_edit()
+
+
 @cli.command(context_settings=CTX_SETTINGS)
 def create(ctx: typer.Context, name: Optional[str] = typer.Argument(None, help="Name of the new deck to create. If omitted, runs an interactive setup.")):
     """

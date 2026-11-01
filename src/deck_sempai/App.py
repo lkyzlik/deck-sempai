@@ -1,4 +1,6 @@
 import json
+import os
+import click
 
 from dataclasses import dataclass, asdict
 from importlib.metadata import version
@@ -7,7 +9,7 @@ from platformdirs import user_data_dir
 from pathlib import Path
 from rich.text import Text
 
-from deck_sempai.Config import Config
+from deck_sempai.Config import Config, user_config_file
 from deck_sempai.Deck import Deck, DeckMeta
 from deck_sempai.DeckOperator import DeckOpResult, DeckOpError
 from deck_sempai.Enums import GrammarRule, Language
@@ -476,6 +478,16 @@ class App:
         entries = [self._parse_add_line(line) for line in lines]
 
         self._add_notes(entries, interactive=True)
+
+
+    def config_edit(self):
+        path = user_config_file("config.toml")
+        self.frontend.info(f"Opening {path}")
+        # Prefer the user's terminal editor; otherwise use the OS default app for the file.
+        if os.environ.get("VISUAL") or os.environ.get("EDITOR"):
+            click.edit(filename=str(path))
+        elif click.launch(str(path)) != 0:
+            self.frontend.error(f"Could not open {path}. Set $EDITOR or edit it manually.")
 
 
     def show(self, only_meta: bool = False):

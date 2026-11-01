@@ -45,6 +45,8 @@ class AnkiIntegration:
 
     def user_help(self) -> str:
         return (
+            "Required for editing cards and decks in Anki.\n"
+            "Repair steps:\n"
             "1. Make sure Anki app is installed and running. (https://apps.ankiweb.net)\n"
             "2. Make sure AnkiConnect add-on is installed. Steps to install:\n"
             "   Tools > Add-ons > Get add-ons... > Code: 2055492159"

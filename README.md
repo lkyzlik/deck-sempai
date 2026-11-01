@@ -65,6 +65,26 @@ sempai --help
 
 To upgrade later, run `uv tool upgrade deck-sempai`; to remove it, `uv tool uninstall deck-sempai`.
 
+## Integrations
+
+Most features need a connection to another app or service:
+
+| Integration | Used for | Requires |
+|---|---|---|
+| `anki` | Storing decks and cards | [Anki](https://apps.ankiweb.net) desktop app running, with the [AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on |
+| `ollama` | Translation and AI grammar help | [Ollama](https://ollama.com/download) running locally, with the configured model pulled |
+| `ordnet` | Danish pronunciation and grammar lookups | Internet access to [ordnet.dk](https://ordnet.dk) |
+
+Check that the integrations work with:
+
+```bash
+sempai status          # all integrations
+sempai status anki     # just one
+```
+
+Any disconnected integration lists the steps to set it up. Unused integrations can be disabled with `enable = false` in the
+config (`sempai config`).
+
 ## License
 
 DeckSempai is released under the [MIT License](LICENSE).

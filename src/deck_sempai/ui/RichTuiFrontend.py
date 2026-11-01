@@ -1407,7 +1407,7 @@ class RichTuiFrontend:
             line.append(status, style=color)
             parts.append(line)
             if help_text:
-                parts.append(Text(f"Repair steps:\n{help_text}", style=self.COLOR_QUIET))
+                parts.append(Text(help_text, style=self.COLOR_QUIET))
 
         if self._fullscreen:
             self._append_body(Group(*parts))

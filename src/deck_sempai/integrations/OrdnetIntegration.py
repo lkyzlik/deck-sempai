@@ -48,6 +48,8 @@ class OrdnetIntegration:
 
     def user_help(self) -> str:
         return (
+            "Required for adding Danish pronunciation and grammar help using ordnet.dk.\n"
+            "Repair steps:\n"
             "1. Make sure your computer is connected to the internet.\n"
             "2. Check if ordnet.dk website is up."
         )

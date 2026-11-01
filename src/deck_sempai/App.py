@@ -1,6 +1,8 @@
 import json
 import os
-import click
+import shlex
+import subprocess
+import typer
 
 from dataclasses import dataclass, asdict
 from importlib.metadata import version
@@ -482,11 +484,12 @@ class App:
 
     def config_edit(self):
         path = user_config_file("config.toml")
-        self.frontend.info(f"Opening {path}")
+        self.frontend.print(f"Opening {path}")
         # Prefer the user's terminal editor; otherwise use the OS default app for the file.
-        if os.environ.get("VISUAL") or os.environ.get("EDITOR"):
-            click.edit(filename=str(path))
-        elif click.launch(str(path)) != 0:
+        editor = os.environ.get("VISUAL") or os.environ.get("EDITOR")
+        if editor:
+            subprocess.call([*shlex.split(editor), str(path)])
+        elif typer.launch(str(path)) != 0:
             self.frontend.error(f"Could not open {path}. Set $EDITOR or edit it manually.")
 
 

@@ -11,6 +11,14 @@
     Assistant to the regional flashcard deck manager
 </p>
 
+<p align="center">
+  <a href="#features">Features</a>&nbsp;&nbsp;&nbsp;
+  <a href="#installation">Installation</a>&nbsp;&nbsp;&nbsp;
+  <a href="#get-started">Get Started</a>&nbsp;&nbsp;&nbsp;
+  <a href="#future-features">Future Features</a>&nbsp;&nbsp;&nbsp;
+  <a href="#license">License</a>
+</p>
+
 ## Features
 * Import/export cards from/to Anki
 * Automatically translate
@@ -65,7 +73,9 @@ sempai --help
 
 To upgrade later, run `uv tool upgrade deck-sempai`; to remove it, `uv tool uninstall deck-sempai`.
 
-## Integrations
+## Get started
+
+### Integrations
 
 Most features need a connection to another app or service:
 
@@ -85,9 +95,61 @@ sempai status anki     # just one
 Any disconnected integration lists the steps to set it up. Unused integrations can be disabled with `enable = false` in the
 config (`sempai config`).
 
+### Usage
+
+Run `sempai` without a command to open the interactive TUI, or use the commands below. Commands that
+change cards show a preview and ask for confirmation before saving.
+
+Create a deck and switch to it:
+
+```bash
+sempai create "Danish" lang_front=da lang_back=en
+sempai deck "Danish"           # switch to an existing deck
+sempai show                    # show the current deck
+```
+
+Add cards. Translation, sounds and grammar help are applied automatically (configurable via
+`apply` in `sempai config`):
+
+```bash
+sempai add "hund" --back "dog"   # front and back
+sempai add "hund"                # back filled in by translation
+sempai add                       # multiple cards, one "front ; back" per line
+```
+
+Add pronunciation sounds to the cards of the current deck:
+
+```bash
+sempai add-sound front
+sempai rm-sound front            # remove them again
+```
+
+Add grammar help, such as noun articles and plurals:
+
+```bash
+sempai add-grammar noun_article,noun_plural front
+```
+
+Translate cards from one side to the other:
+
+```bash
+sempai translate front:back
+```
+
+Most arguments can be omitted to pick them interactively instead. To see all commands, run
+`sempai --help`, and `sempai COMMAND --help` for details on a specific one.
+
+## Future features
+This is one person hobby project so I can't promise anything will be added. But if I'll
+find time I'd like to add:
+
+- Web-browser-based GUI
+- Offline non-AI translation
+- Better support for more languages (Spanish, German, ...) 
+- MCP server
+- More options for card import/export (CSV, PDF, ...)
+
 ## License
 
 DeckSempai is released under the [MIT License](LICENSE).
-
-
 

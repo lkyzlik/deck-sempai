@@ -103,7 +103,7 @@ change cards show a preview and ask for confirmation before saving.
 Create a deck and switch to it:
 
 ```bash
-sempai create "Danish" lang_front=da lang_back=en
+sempai create "Danish" lang_front=en lang_back=da
 sempai deck "Danish"           # switch to an existing deck
 sempai show                    # show the current deck
 ```
@@ -112,22 +112,22 @@ Add cards. Translation, sounds and grammar help are applied automatically (confi
 `apply` in `sempai config`):
 
 ```bash
-sempai add "hund" --back "dog"   # front and back
-sempai add "hund"                # back filled in by translation
+sempai add "dog" --back "hund"   # front and back
+sempai add "dog"                 # back filled in by translation
 sempai add                       # multiple cards, one "front ; back" per line
 ```
 
 Add pronunciation sounds to the cards of the current deck:
 
 ```bash
-sempai add-sound front
-sempai rm-sound front            # remove them again
+sempai add-sound back
+sempai rm-sound back             # remove them again
 ```
 
 Add grammar help, such as noun articles and plurals:
 
 ```bash
-sempai add-grammar noun_article,noun_plural front
+sempai add-grammar noun_article,noun_plural back
 ```
 
 Translate cards from one side to the other:
